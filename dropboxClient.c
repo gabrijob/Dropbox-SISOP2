@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
 	
 	serv_addr.sin_family = AF_INET;     
 	serv_addr.sin_port = htons(PORT);    
-	serv_addr.sin_addr = *((struct in_addr *)server->h_addr);
+	serv_addr.sin_addr = *((struct in_addr *)server->h_addr_list[0]); //h_addr -> h_addr_list[0]
 	bzero(&(serv_addr.sin_zero), 8);  
 
 	printf("Enter the message: ");
