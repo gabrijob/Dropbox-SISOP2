@@ -4,24 +4,24 @@
 #include <stdio.h>
 
 
-#define MAXNAME 200     //talvez mudar eventualmente
+#define MAXNAME 256     //talvez mudar eventualmente
 #define MAXFILES 50     //talvez mudar eventualmente
 
 
-struct file_info{
+typedef struct file_info{
     char name[MAXNAME];
     char extension[MAXNAME];
     char last_modified[MAXNAME];
     int size;
-};
+}File_info;
 
 
-struct client{
+typedef struct client{
     int devices[2];
     char userid[MAXNAME];
     struct file_info files[MAXFILES];
     int logged_in;
-};
+}Client;
 
 
 
