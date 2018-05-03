@@ -89,6 +89,6 @@ ClientList addClient(char* userID, int socket, ClientList user_list);
 
 
 //DEBUG SECTION
-void printUserList(ClientList user_list)
+void printUserList(ClientList user_list);
 
 #endif

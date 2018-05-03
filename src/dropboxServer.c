@@ -164,7 +164,7 @@ int main(int argc, char *argv[]) {
 	/* End of parsing */
 
 	/* Creating socket and binding server */
-	sockid = open_server(address, port, serverInfo)
+	sockid = open_server(address, port, serverInfo);
 	if (sockid != ERROR) {
 		
 		/* Checking if the server dir exists
