@@ -1,77 +1,83 @@
 #ifndef CLIENT_CODE
 #define CLIENT_CODE
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
+#include "dropboxClient.h"
 
+/*   Global variables   */
+UserInfo user;
+/////////////////////////
 
-int login_server(int userID, char* host, int port){
-	int sockfd;
-	struct sockaddr_in serv_addr, from;
-	struct hostent *server;
+int login_server(char *host, int port) {
 
-
-	server = gethostbyname(host);
-	if (server == NULL) {
-        fprintf(stderr,"ERROR, no such host\n");
-        exit(0);
-    }	
-
-	serv_addr.sin_family = AF_INET;     
-	serv_addr.sin_port = htons(port);    
-	serv_addr.sin_addr = *((struct in_addr *)server->h_addr_list[0]);
-	bzero(&(serv_addr.sin_zero), 8);
-
-	//GET SOCKET
-	if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
-		printf("ERROR opening socket");
-
-
-	unsigned int length = sizeof(struct sockaddr_in);
-	int n;
-
-	//TEST CONNECTION WITH SERVER
-	char message[20] = "CONNECT";
-	n = sendto(sockfd, message, strlen(message), 0, (const struct sockaddr *) &serv_addr, length);
-	if (n < 0) 
-		printf("ERROR ESTABLISHING CONNECTION WITH SERVER");
-
-	//RECEIVE ACK FROM SERVER
-    n = recvfrom(sockfd, message, 20, 0, (struct sockaddr *) &from, &length);
-	if (n < 0)
-		printf("ERROR GETTING RESPONSE FROM SERVER");
-
-	printf("Got an ack: %s\n", message);
-
-	//SEND USERID
-	sprintf(message, "%i", userID);
-	n = sendto(sockfd, message, strlen(message), 0, (const struct sockaddr *) &serv_addr, length);
-	if (n < 0)
-		printf("ERROR SENDING USERID");
-	
-	
-	//CLOSE
-	close(sockfd);
-	return 0;
+	return SUCCESS;
 }
 
-int main(int argc, char *argv[]){
+void sync_client() {
 
-	if (argc < 4) {
-		fprintf(stderr, "usage %s userID hostname port\n", argv[0]);
-		exit(0);
 
+}
+
+void send_file(char *file) {
+
+
+}
+
+void get_file(char *file) {
+
+
+}
+
+void delete_file(char *file) {
+
+
+}
+
+void close_session() {
+
+
+}
+
+int main(int argc, char *argv[]) {
+
+	int port;
+	char *address;
+
+	if (argc != 4) {
+		puts("Error! Insuficient Arguments");
+		puts("Expected: './dropboxClient user address port'");
+
+		return ERROR;
 	}
 
-	return login_server(strtol(argv[1], NULL, 10), argv[2], strtol(argv[3], NULL, 10));
+	/* Setting user information by parsing entries */
+	if (strlen(argv[1]) <= MAXNAME) {
+		strcpy(user.id, argv[1]);
+		sprintf(user.folder, "%s/sync_dir_%s", getUserHome(), user.id);
+	} else {
+		puts("Maximum user ID size exceeded\n");
+		printf("Maximum: %d\n", MAXNAME);
 
+		return ERROR;
+	}
+
+	address = malloc(strlen(argv[2]));
+	strcpy(address, argv[2]);
+
+	port = atoi(argv[3]);
+	/* End of initial parsing */
+
+
+	/* Starts communication with the server
+	        -> Opens a socket UDP */
+	if (contact_server(address, port, user) == SUCCESS) {
+
+		sync_dir();
+		
+		printf("Ready to show menu\n");
+	} else {
+		printf("Could not connect to server '%s' at port '%d'\n", address, port);
+		return ERROR;
+	}
 }
 
 

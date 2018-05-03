@@ -1,20 +1,14 @@
 #ifndef SERVER_HEADER
 #define SERVER_HEADER
 
-#include <stdio.h>
+#include "dropboxUtil.h"
 
 
-#define MAXNAME 256     //talvez mudar eventualmente
-#define MAXFILES 50     //talvez mudar eventualmente
-
-
-typedef struct file_info{
-    char name[MAXNAME];
-    char extension[MAXNAME];
-    char last_modified[MAXNAME];
-    int size;
-}File_info;
-
+/*typedef struct server_info {
+  char ip[sizeof(DEFAULT_ADDRESS) * 2];
+  char folder[MAXNAME * 2];
+  int port;
+}ServerInfo;
 
 typedef struct client{
     int devices[2];
@@ -23,12 +17,25 @@ typedef struct client{
     int logged_in;
 }Client;
 
+typedef struct connection_info{
+  int socket_id;
+  char* ip;
+  char buffer[BUFFER_SIZE];
+}Connection;
+
+typedef struct client_node{
+    Client* client;
+    struct client_node* next;
+    struct client_node* prev;   
+}ClientNode;
+
+typedef ClientNode* ClientList;*/
 
 
 void sync_server();
 
-void receive_file(char* file);
+void receive_file(char *file);
 
-void send_file(char* file);
+void send_file(char *file);
 
 #endif

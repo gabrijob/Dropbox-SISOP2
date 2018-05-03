@@ -1,21 +1,23 @@
 CC = gcc
 CFLAGS = -I./include
+SRC_DIR = ./src/
+SRC_DIR = ./include/
 
-OBJ_SERVER = dropboxServer.o clientList.o
+OBJ_SERVER = dropboxServer.o dropboxUtils.o
+OBJ_CLIENT = dropboxClient.o dropboxUtils.o
 
 
 
-all: dropboxServer dropboxClient
+all: util client server
 
-dropboxServer: $(OBJ_SERVER)
-	$(CC) $(CFLAGS) -o $@ $^
+util: $(SRC_DIR)dropboxUtil.c
+	$(CC) -c -o 
 
-dropboxClient: ./src/dropboxClient.c 
-	$(CC) -o $@ $^
+dropboxClient: $(OBJ_CLIENT)  
+	$(CC) $(CFLAGS) -o $@ $^ 
 
 %.o: src/%.c include/*.h 
 	$(CC) $(CFLAGS) -c -o $@ $<
-
 
 
 .PHONY: clean
