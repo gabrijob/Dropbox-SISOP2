@@ -79,7 +79,7 @@ void sync_dir();
 
 char* getUserHome();
 
-int open_server(char *address, int port, ServerInfo serverInfo);
+//int open_server(char *address, int port, ServerInfo serverInfo);
 
 bool check_dir(char *pathname);
 

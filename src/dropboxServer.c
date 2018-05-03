@@ -24,6 +24,40 @@ void send_file(char *file) {
 
 }*/
 
+int open_server(char *address, int port) {
+
+	struct sockaddr_in server;
+	int sockid;
+
+	/* Initialize socket and server structures */
+  	bzero((char *) &server, sizeof(server));
+
+	server.sin_family = AF_INET; 
+	server.sin_port = htons(port); 
+	server.sin_addr.s_addr = inet_addr(address);
+
+	sprintf(serverInfo.folder, "%s/%s", getUserHome(), SERVER_FOLDER);
+	strcpy(serverInfo.ip, address);
+	serverInfo.port = port;
+	/* End of initialization */
+
+
+  	/* Creating the socket */
+	sockid = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+ 	if (sockid == ERROR) {
+		printf("Error opening socket\n");
+		return ERROR;
+	}
+	
+	/* BIND */
+  	if(bind(sockid, (struct sockaddr *) &server, sizeof(server)) == ERROR) { 
+    		perror("Falha na nomeação do socket\n");
+    		return ERROR;
+  	}
+	
+	return sockid;	
+}
+
 void* clientThread(void* connection_struct) {
 
 	puts("Reached control thread");
@@ -164,7 +198,7 @@ int main(int argc, char *argv[]) {
 	/* End of parsing */
 
 	/* Creating socket and binding server */
-	sockid = open_server(address, port, serverInfo);
+	sockid = open_server(address, port);
 	if (sockid != ERROR) {
 		
 		/* Checking if the server dir exists

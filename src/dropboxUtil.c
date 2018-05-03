@@ -26,7 +26,7 @@ int contact_server(char *host, int port, UserInfo user) {
 	bzero(buffer, BUFFER_SIZE-1);
 	strcpy(buffer, user.id);
 
-	func_return = sendto(sockid, buffer, strlen(buffer), 0, (const struct sockaddr *) &serv_conn, sizeof(struct sockaddr_in));
+	func_return = sendto(sockid, buffer, BUFFER_SIZE, 0, (const struct sockaddr *) &serv_conn, sizeof(struct sockaddr_in));
 	if (func_return < 0) {
 		printf("ERROR sendto ");
 		return ERROR;
@@ -69,40 +69,6 @@ char* getUserHome() {
 	
 	printf("No root directory found! Returning empty...\n");
  	return "";
-}
-
-int open_server(char *address, int port, ServerInfo serverInfo) {
-
-	struct sockaddr_in server;
-	int sockid;
-
-	/* Initialize socket and server structures */
-  	bzero((char *) &server, sizeof(server));
-
-	server.sin_family = AF_INET; 
-	server.sin_port = htons(port); 
-	server.sin_addr.s_addr = inet_addr(address);
-
-	sprintf(serverInfo.folder, "%s/%s", getUserHome(), SERVER_FOLDER);
-	strcpy(serverInfo.ip, address);
-	serverInfo.port = port;
-	/* End of initialization */
-
-
-  	/* Creating the socket */
-	sockid = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
- 	if (sockid == ERROR) {
-		printf("Error opening socket\n");
-		return ERROR;
-	}
-	
-	/* BIND */
-  	if(bind(sockid, (struct sockaddr *) &server, sizeof(server)) == ERROR) { 
-    		perror("Falha na nomeação do socket\n");
-    		return ERROR;
-  	}
-	
-	return sockid;	
 }
 
 
