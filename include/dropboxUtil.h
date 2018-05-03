@@ -34,44 +34,56 @@
 
 
 typedef struct file_info{
-    char name[MAXNAME];
-    char extension[MAXNAME];
-    char last_modified[MAXNAME];
-    int size;
+	char name[MAXNAME];
+	char extension[MAXNAME];
+	char last_modified[MAXNAME];
+	int size;
 }FileInfo;
 
 typedef struct server_info {
-  char ip[sizeof(DEFAULT_ADDRESS) * 2];
-  char folder[MAXNAME * 2];
-  int port;
+	char ip[sizeof(DEFAULT_ADDRESS) * 2];
+	char folder[MAXNAME * 2];
+	int port;
 }ServerInfo;
 
 typedef struct user_info {
 	char id[MAXNAME];
-  	char folder[MAXNAME*2];
+	char folder[MAXNAME*2];
 }UserInfo;
 
 typedef struct connection_info{
-  int socket_id;
-  char* ip;
-  char buffer[BUFFER_SIZE];
+	int socket_id;
+	char* ip;
+	char buffer[BUFFER_SIZE];
 }Connection;
 
 typedef struct client{
-    int devices[2];
-    char userid[MAXNAME];
-    struct file_info files[MAXFILES];
-    int logged_in;
+	int devices[2];
+	char userid[MAXNAME];
+	int logged_in;
+	struct file_info files[MAXFILES];
 }Client;
 
 typedef struct client_node{
-    Client* client;
-    struct client_node* next;
-    struct client_node* prev;   
+	Client* client;
+	struct client_node* next;
+	struct client_node* prev;   
 }ClientNode;
 
 typedef ClientNode* ClientList;
 
+
+/* Ack Structures */
+typedef struct packet{
+    char data[BUFFER_SIZE];
+}Packet;
+
+typedef struct frame{
+    int message_id;
+    bool ack;
+    Packet packet;
+}Frame;
+/* End of Ack */
 
 int contact_server(char *host, int port, UserInfo user);
 
