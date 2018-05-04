@@ -1,21 +1,27 @@
 #ifndef UTIL_CODE
 #define UTIL_CODE
 
+int ID_MSG_CLIENT = 0;
+
 #include "dropboxUtil.h"
 
 int contact_server(char *host, int port, UserInfo user) {
 
-	char buffer[BUFFER_SIZE];
+	//char buffer[BUFFER_SIZE];
 	int func_return, sockid;
 	unsigned int length;
 
 	struct sockaddr_in serv_conn, from;
+	
+	Frame packet;
 	
 	sockid = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (sockid == ERROR) {
 		printf("Error opening socket ");
 		return ERROR;
 	}
+	else
+		printf("First client socket %i\n", sockid);
 
 	bzero((char *) &serv_conn, sizeof(serv_conn));
 
@@ -23,23 +29,44 @@ int contact_server(char *host, int port, UserInfo user) {
 	serv_conn.sin_port = htons(port);
 	serv_conn.sin_addr.s_addr = inet_addr(host);
 
-	bzero(buffer, BUFFER_SIZE-1);
-	strcpy(buffer, user.id);
+	/* Filling packet structure */
+	bzero(packet.user, MAXNAME-1);
+	strcpy(packet.user, user.id);
+	bzero(packet.buffer, BUFFER_SIZE -1);
+	packet.message_id = ID_MSG_CLIENT;
+	packet.ack = FALSE;
 
-	func_return = sendto(sockid, buffer, BUFFER_SIZE, 0, (const struct sockaddr *) &serv_conn, sizeof(struct sockaddr_in));
-	if (func_return < 0) {
-		printf("ERROR sendto ");
-		return ERROR;
-	}
+	while((strcmp(user.id, packet.user) != 0) || (packet.ack != TRUE) || (packet.message_id != ID_MSG_CLIENT)) {	
+
+		printf("Entered\n");
+		func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_conn, sizeof(struct sockaddr_in));
+		if (func_return < 0) {
+			printf("ERROR sendto ");
+			return ERROR;
+		}/*
+		if (packet.ack == TRUE)
+			printf("Ack 1 on client TRUE\n");
+		else
+			printf("Ack 1 on client FALSE\n");
+		DEBUG*/
 	
-	length = sizeof(struct sockaddr_in);
-	func_return = recvfrom(sockid, buffer, BUFFER_SIZE, 0, (struct sockaddr *) &from, &length);
-	if (func_return < 0) {
-		printf("ERROR recvfrom ");
-		return ERROR;
+		length = sizeof(struct sockaddr_in);
+		func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
+		if (func_return < 0) {
+			printf("ERROR recvfrom ");
+			return ERROR;
+		}/*
+		if (packet.ack == TRUE)
+			printf("Ack 2 on client TRUE\n");
+		else
+			printf("Ack 2 on client FALSE\n");
+		DEBUG*/
+
 	}
 
-	printf("Got an ack: %s\n", buffer);
+	ID_MSG_CLIENT++;
+
+	//printf("Got an ack: %s\n", packet.buffer); DEBUG
 
 	return SUCCESS;
 

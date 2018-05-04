@@ -75,7 +75,7 @@ void* clientThread(void* connection_struct) {
 	connection = (Connection*) connection_struct;
 	socket = connection->socket_id;
 	//client_ip = connection->ip;
-	strncpy(client_id, connection->buffer, MAXNAME);
+	strncpy(client_id, connection->client_id, MAXNAME);
 	client_id[MAXNAME - 1] = '\0';
 
 	/* Search for client in Clients List */
@@ -112,7 +112,8 @@ void wait_connection(int sockid) {
 
 	int  func_return, new_client_socket;
 	char *client_ip;
-	char buffer[BUFFER_SIZE];
+
+	Frame packet_server, packet;
 		 
 	socklen_t clilen;
 
@@ -122,18 +123,28 @@ void wait_connection(int sockid) {
 	struct sockaddr_in cli_addr;
 		
 	clilen = sizeof(struct sockaddr_in);
-	
+
+	packet_server.ack = FALSE; //controls the acks received by the server
 	while (TRUE) {
 		
-		func_return = recvfrom(sockid, buffer, BUFFER_SIZE, 0, (struct sockaddr *) &cli_addr, &clilen);
-		if (func_return < 0) 
-			printf("ERROR on recvfrom\n");
-		printf("Received a datagram: %s\n", buffer);
+		while(packet_server.ack != TRUE){
+			
+			func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
+			if (func_return < 0) 
+				printf("ERROR on recvfrom\n");
+			printf("Received a datagram from: %s\n", packet.user);
+			//printf("ACK 1 SERVER = %d\n", packet_server.ack); DEBUG
 		
-		
-		func_return = sendto(sockid, "Got your message\n", 17, 0,(struct sockaddr *) &cli_addr, sizeof(struct sockaddr));
-		if (func_return < 0) 
-			printf("ERROR on sendto\n");
+			bzero(packet.buffer, BUFFER_SIZE -1);		
+			strcpy(packet.buffer, "Got yout message\n");
+			packet.ack = TRUE; packet_server.ack = TRUE;
+
+			func_return = sendto(sockid, &packet, sizeof(packet), 0,(struct sockaddr *) &cli_addr, sizeof(struct sockaddr));
+			if (func_return < 0) 
+				printf("ERROR on sendto\n");
+			//printf("ACK 2 SERVER = %d\n", packet_server.ack); DEBUG
+
+		}packet_server.ack = FALSE;
 
 		/* Updates semaphore when a new connection starts */		
 		sem_wait(&semaphore);
@@ -149,13 +160,14 @@ void wait_connection(int sockid) {
 			printf("Error on attributing new socket\n");
 
 		/* For debug */
-		else
-			printf("Socket of the new user %i\n", new_client_socket);
+		//else
+			//printf("Socket of the new user %i\n", new_client_socket);
 
 		connection->socket_id = new_client_socket;
 		connection->ip = client_ip;
 		/* Field buffer is used to get information from client */
-		strcpy(connection->buffer, buffer);
+		strcpy(connection->buffer, packet.buffer);
+		strcpy(connection->client_id, packet.user);
 
 		/* Creates thread to control clients access to server */
 		if(pthread_create(&thread_id, NULL, clientThread, (void*) connection) < 0)

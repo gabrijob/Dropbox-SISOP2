@@ -51,6 +51,11 @@ int main(int argc, char *argv[]) {
 
 	/* Setting user information by parsing entries */
 	if (strlen(argv[1]) <= MAXNAME) {
+		if (strcmp(argv[1], SERVER_USER) == 0) {
+			printf("Invalid User! Please do not use 'server' as ID...\n");
+			return ERROR;
+		}
+
 		strcpy(user.id, argv[1]);
 		sprintf(user.folder, "%s/sync_dir_%s", getUserHome(), user.id);
 	} else {
@@ -59,7 +64,7 @@ int main(int argc, char *argv[]) {
 
 		return ERROR;
 	}
-
+	
 	address = malloc(strlen(argv[2]));
 	strcpy(address, argv[2]);
 

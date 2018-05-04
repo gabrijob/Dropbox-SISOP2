@@ -21,6 +21,7 @@
 #define DEFAULT_PORT 3000
 #define DEFAULT_ADDRESS "127.0.0.1"
 #define SERVER_FOLDER "syncBox_users"
+#define SERVER_USER "server"
 
 #define MAXNAME 25
 #define MAXFILES 50
@@ -53,6 +54,7 @@ typedef struct user_info {
 
 typedef struct connection_info{
 	int socket_id;
+	char client_id[MAXNAME];
 	char* ip;
 	char buffer[BUFFER_SIZE];
 }Connection;
@@ -73,15 +75,18 @@ typedef struct client_node{
 typedef ClientNode* ClientList;
 
 
-/* Ack Structures */
-typedef struct packet{
-    char data[BUFFER_SIZE];
-}Packet;
-
+/* Ack Structure */
+/*
+	->message_id	:	contains the id of the message, must be incremented every new message
+	->ack		:	if the ack is confirmed must be TRUE
+	->buffer	:	contains the string content of the message
+	->user		:	contains the info of who sent the message (always as client, server user is default)
+*/
 typedef struct frame{
-    int message_id;
-    bool ack;
-    Packet packet;
+    int message_id;			
+    bool ack;				
+    char buffer[BUFFER_SIZE];
+    char user[MAXNAME];
 }Frame;
 /* End of Ack */
 
