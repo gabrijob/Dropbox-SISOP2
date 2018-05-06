@@ -12,14 +12,52 @@ sem_t semaphore;
 /*void sync_server() {
 
 
+}*/
+
+void receive_file(char* filename, int sockid) {
+	int bytes_written;
+	int func_return;
+	int file_size;
+
+	struct sockaddr_in cli_addr;		
+	socklen_t clilen = sizeof(struct sockaddr_in);
+
+	FILE* file;
+	char buffer[BUFFER_SIZE];
+
+	file = fopen(filename, "wb");
+	if(file) {
+		/* Receives the file size from client*/
+		func_return = recvfrom(sockid, &buffer, sizeof(buffer), 0, (struct sockaddr *) &cli_addr, &clilen);
+		if (func_return < 0) 
+			printf("ERROR on recvfrom\n");
+		file_size = atoi(buffer);
+
+		/* Receives the file in BUFFER_SIZE sized parts*/
+		bytes_written = 0;
+		while(file_size > bytes_written) {
+			func_return = recvfrom(sockid, &buffer, sizeof(buffer), 0, (struct sockaddr *) &cli_addr, &clilen);
+			if (func_return < 0) 
+				printf("ERROR on recvfrom\n");
+
+			if((file_size = bytes_written) > BUFFER_SIZE) {
+				fwrite(buffer, sizeof(char), BUFFER_SIZE, file);
+				bytes_written += sizeof(char) * BUFFER_SIZE; 
+			}
+			else {
+				fwrite(buffer, sizeof(char), (file_size = bytes_written), file);
+				bytes_written += sizeof(char) * (file_size = bytes_written);
+			}
+			printf("\n Receiving file %s - Total: %d / Written: %d", filename, file_size, bytes_written); //DEBUG
+		} 
+		printf("\n Finished receiving file %s", filename); //DEBUG
+		fclose(file);
+	}
+	else
+		printf("Erro ao abrir o arquivo %s", filename);
 }
-
-void receive_file(char *file) {
-
-
-}
-
-void send_file(char *file) {
+/*
+void send_file(char *file, int sockid) {
 
 
 }*/
@@ -61,9 +99,11 @@ int open_server(char *address, int port) {
 void* clientThread(void* connection_struct) {
 
 	puts("Reached control thread");
+	struct sockaddr_in cli_addr;		
+	socklen_t clilen = sizeof(struct sockaddr_in);
+	int func_return;
 
 	int socket;
-	int device;
 	char client_id[MAXNAME];
 	
 	Connection *connection = (Connection*) malloc(sizeof(Connection));
@@ -71,7 +111,6 @@ void* clientThread(void* connection_struct) {
 	
 	/* Assignments */
 	
-	device = 0;
 	connection = (Connection*) connection_struct;
 	socket = connection->socket_id;
 	//client_ip = connection->ip;
@@ -96,11 +135,41 @@ void* clientThread(void* connection_struct) {
 
 
 	} else {
-
 		/* Adds a new device for the client */
-		//device = newDevice(client, socket);
-		device++; //Assigned only fot testing
+		newDevice(client, socket);
+	}
 
+	if(client->devices[0] > -1 || client->devices[1] > -1) {
+		char client_folder[5*MAXNAME];
+
+		sprintf(client_folder, "%s/%s", serverInfo.folder, client_id);
+		if(check_dir(client_folder) == FALSE) {
+			if(mkdir(client_folder, 0777) != SUCCESS) {
+				printf("Error creating client folder '%s'.\n", client_folder);
+				return NULL;
+			}
+		}
+
+		//sync_server()
+
+		int connected = TRUE;
+		char buffer[BUFFER_SIZE];
+		bzero(buffer, BUFFER_SIZE);
+
+		/* Waits for commands */
+		while(connected == TRUE) {
+			func_return = recvfrom(socket, &buffer, sizeof(buffer), 0, (struct sockaddr *) &cli_addr, &clilen);
+			if (func_return < 0) 
+				printf("ERROR on recvfrom\n");
+			
+			if(strcmp(buffer, END_REQ) == 0) {
+				connected = FALSE;
+				sem_post(&semaphore);
+			}
+			else {
+				//select_commands()
+			}
+		}
 	}
 	
 	return 0;

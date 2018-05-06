@@ -164,6 +164,23 @@ ClientList addClient(char* userID, int socket, ClientList user_list) {
 	return user_list;
 }
 
+/**Tries to add a new device to a client, 
+ * returns 1 if successfull
+ * returns -1 if client reached the max amount of devices
+ */
+int newDevice(Client* client, int socket) {
+	if(client->devices[0] == -1) {
+		client->devices[0] = socket;
+		return 0;
+	}
+	if(client->devices[1] == -1) {
+		client->devices[1] = socket;
+		return 0;
+	}
+
+	return -1;
+}
+
 
 /* --------------------------> FOR DEBUG <-------------------------- */
 void printUserList(ClientList user_list){
@@ -182,28 +199,6 @@ void printUserList(ClientList user_list){
 }
 /* ----------------------------------------------------------------- */
 
-
-/*Verfies if the client can connect another devide; Returns -1 if not 
-int addDevice(Client* client, int socket) {
-	if(client->devices[0] == -1) {
-		sprintf(client_folder, "%s/%s", serverInfo.folder, client->userid);
-		client->n_files = get_dir_file_info(client_folder, client->file_info);
-		client->devices[0] = socket;
-
-		return 0;
-	}
-
-	if(client->devices[1] == -1) {
-		sprintf(client_folder, "%s/%s", serverInfo.folder, client->userid);
-		client->n_files = get_dir_file_info(client_folder, client->file_info);
-		client->devices[1] = socket;
-
-		return 1;
-	}
-
-	return -1;
-}
-*/
 
 
 #endif

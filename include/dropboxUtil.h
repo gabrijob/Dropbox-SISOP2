@@ -33,6 +33,7 @@
 #define TRUE 1
 #define FALSE !(TRUE)
 
+#define END_REQ "END SESSION REQUEST"
 
 typedef struct file_info{
 	char name[MAXNAME];
@@ -103,6 +104,8 @@ bool check_dir(char *pathname);
 Client* searchClient(char* userId, ClientList user_list);
 
 ClientList addClient(char* userID, int socket, ClientList user_list);
+
+int newDevice(Client* client, int socket);
 
 
 //DEBUG SECTION
