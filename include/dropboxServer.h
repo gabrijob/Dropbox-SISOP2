@@ -34,8 +34,8 @@ typedef ClientNode* ClientList;*/
 
 void sync_server();
 
-void receive_file(char *file, int sockid);
+void receive_file(char *filename, int sockid, struct sockaddr_in *cli_addr);
 
-void send_file(char *file);
+void send_file(char *filename, int sockid, struct sockaddr_in *cli_addr);
 
 #endif

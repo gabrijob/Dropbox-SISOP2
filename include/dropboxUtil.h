@@ -97,6 +97,8 @@ void sync_dir();
 
 char* getUserHome();
 
+int getFileSize(FILE* file);
+
 //int open_server(char *address, int port, ServerInfo serverInfo);
 
 bool check_dir(char *pathname);
@@ -107,6 +109,7 @@ ClientList addClient(char* userID, int socket, ClientList user_list);
 
 int newDevice(Client* client, int socket);
 
+int fileExists(char* filename);
 
 //DEBUG SECTION
 void printUserList(ClientList user_list);

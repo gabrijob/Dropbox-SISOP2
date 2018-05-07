@@ -98,6 +98,15 @@ char* getUserHome() {
  	return "";
 }
 
+int getFileSize(FILE* file) {
+	int size;
+
+	fseek(file, 0, SEEK_END);
+	size = ftell(file);
+	rewind(file);
+
+	return size;
+}
 
 /* Verfies if the server directory already exists 
    	->Uses the 'sys/stat.h' lib */
@@ -181,6 +190,10 @@ int newDevice(Client* client, int socket) {
 	return -1;
 }
 
+int fileExists(char* filename) {
+	struct stat buffer;
+	return (stat(filename, &buffer) == 0);
+}
 
 /* --------------------------> FOR DEBUG <-------------------------- */
 void printUserList(ClientList user_list){

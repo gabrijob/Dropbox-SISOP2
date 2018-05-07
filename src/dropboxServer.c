@@ -14,38 +14,40 @@ sem_t semaphore;
 
 }*/
 
-void receive_file(char* filename, int sockid) {
+void receive_file(char* filename, int sockid, struct sockaddr_in *cli_addr) {
 	int bytes_written;
-	int func_return;
 	int file_size;
-
-	struct sockaddr_in cli_addr;		
+	int func_return;
+	
+	Frame packet;		
 	socklen_t clilen = sizeof(struct sockaddr_in);
 
 	FILE* file;
-	char buffer[BUFFER_SIZE];
-
 	file = fopen(filename, "wb");
+
 	if(file) {
 		/* Receives the file size from client*/
-		func_return = recvfrom(sockid, &buffer, sizeof(buffer), 0, (struct sockaddr *) &cli_addr, &clilen);
+		func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) cli_addr, &clilen);
 		if (func_return < 0) 
 			printf("ERROR on recvfrom\n");
-		file_size = atoi(buffer);
+		file_size = atoi(packet.buffer);
+		
+		bzero(packet.buffer, BUFFER_SIZE -1);		
+		packet.ack = TRUE;
 
 		/* Receives the file in BUFFER_SIZE sized parts*/
 		bytes_written = 0;
 		while(file_size > bytes_written) {
-			func_return = recvfrom(sockid, &buffer, sizeof(buffer), 0, (struct sockaddr *) &cli_addr, &clilen);
+			func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) cli_addr, &clilen);
 			if (func_return < 0) 
 				printf("ERROR on recvfrom\n");
 
 			if((file_size = bytes_written) > BUFFER_SIZE) {
-				fwrite(buffer, sizeof(char), BUFFER_SIZE, file);
+				fwrite(packet.buffer, sizeof(char), BUFFER_SIZE, file);
 				bytes_written += sizeof(char) * BUFFER_SIZE; 
 			}
 			else {
-				fwrite(buffer, sizeof(char), (file_size = bytes_written), file);
+				fwrite(packet.buffer, sizeof(char), (file_size = bytes_written), file);
 				bytes_written += sizeof(char) * (file_size = bytes_written);
 			}
 			printf("\n Receiving file %s - Total: %d / Written: %d", filename, file_size, bytes_written); //DEBUG
@@ -56,11 +58,51 @@ void receive_file(char* filename, int sockid) {
 	else
 		printf("Erro ao abrir o arquivo %s", filename);
 }
-/*
-void send_file(char *file, int sockid) {
 
 
-}*/
+void send_file(char *filename, int sockid, struct sockaddr_in *cli_addr) {
+	int bytes_read;
+	int file_size;
+	int func_return;
+
+	Frame packet;
+
+	FILE* file;
+	file = fopen(filename, "rb");
+	
+	if(file) {
+		file_size = getFileSize(file);
+		sprintf(packet.buffer, "%d", file_size);
+		//packet.ack == FALSE;
+		/* Sends the file size to the client*/
+		func_return = sendto(sockid, &packet, sizeof(packet), 0,(struct sockaddr *) cli_addr, sizeof(struct sockaddr));
+		if (func_return < 0) 
+			printf("ERROR on sendto\n");
+
+		if(file_size == 0) {
+			fclose(file);
+			return;
+		}
+
+		/* Sends the file in BUFFER_SIZE sized parts*/
+		bytes_read = 0;
+		while(!feof(file)) {
+			fread(packet.buffer, sizeof(char), BUFFER_SIZE, file);
+			bytes_read += sizeof(char) & BUFFER_SIZE;
+
+			func_return = sendto(sockid, &packet, sizeof(packet), 0,(struct sockaddr *) cli_addr, sizeof(struct sockaddr));
+			if (func_return < 0) 
+				printf("ERROR on sendto\n");
+
+			printf("\n Sending file %s - Total: %d / Read: %d", filename, file_size, bytes_read); //DEBUG
+		}
+		printf("\n Finished sending file %s", filename);
+		fclose(file);
+	}
+	else
+		printf("Erro ao abrir o arquivo %s", filename);
+}
+
 
 int open_server(char *address, int port) {
 
@@ -149,7 +191,6 @@ void* clientThread(void* connection_struct) {
 				return NULL;
 			}
 		}
-
 		//sync_server()
 
 		int connected = TRUE;
