@@ -7,10 +7,12 @@
 #include <string.h>
 #include <pwd.h> 
 #include <stdbool.h>
+#include <time.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/inotify.h>
 
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -25,6 +27,7 @@
 
 #define MAXNAME 25
 #define MAXFILES 50
+#define MAXPATH MAXFILES*MAXNAME
 #define BUFFER_SIZE 1024
 #define MAX_CLIENTS 10
 
@@ -50,7 +53,7 @@ typedef struct server_info {
 
 typedef struct user_info {
 	char id[MAXNAME];
-	char folder[MAXNAME*2];
+	char folder[MAXNAME * 2];
 }UserInfo;
 
 typedef struct connection_info{
@@ -93,23 +96,25 @@ typedef struct frame{
 
 int contact_server(char *host, int port, UserInfo user);
 
-void sync_dir();
+void sync_dir(int sockid, UserInfo user, struct sockaddr_in cli_addr);
+void sync_server(int sock_s, Client *client_s);
 
-char* getUserHome();
+int get_dir_file_info(char * path, FileInfo files[]);
+void getFileExtension(const char *filename, char* extension);
+void *dir_content_thread(void *ptr);
+int get_dir_content(char * path, struct d_file files[], int* counter);
 
+void getModifiedTime(char *path, char *last_modified);
+void getTime(char *last_modified);
+int older_file(char *last_modified, char *aux);
+int newDevice(Client* client, int socket);
+int fileExists(char* filename);
 int getFileSize(FILE* file);
-
-//int open_server(char *address, int port, ServerInfo serverInfo);
-
+char* getUserHome();
 bool check_dir(char *pathname);
 
 Client* searchClient(char* userId, ClientList user_list);
-
 ClientList addClient(char* userID, int socket, ClientList user_list);
-
-int newDevice(Client* client, int socket);
-
-int fileExists(char* filename);
 
 //DEBUG SECTION
 void printUserList(ClientList user_list);

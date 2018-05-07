@@ -39,7 +39,7 @@ void close_session() {
 
 int main(int argc, char *argv[]) {
 
-	int port;
+	int port, sockid;
 	char *address;
 
 	if (argc != 4) {
@@ -74,11 +74,11 @@ int main(int argc, char *argv[]) {
 
 	/* Starts communication with the server
 	        -> Opens a socket UDP */
-	if (contact_server(address, port, user) == SUCCESS) {
+	sockid = contact_server(address, port, user); 
+	if (sockid == SUCCESS) {
 
-		sync_dir();
-		
 		printf("Ready to show menu\n");
+
 	} else {
 		printf("Could not connect to server '%s' at port '%d'\n", address, port);
 		return ERROR;

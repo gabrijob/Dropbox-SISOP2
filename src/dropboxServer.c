@@ -9,11 +9,6 @@ ServerInfo serverInfo;
 sem_t semaphore;
 
 
-/*void sync_server() {
-
-
-}*/
-
 void receive_file(char* filename, int sockid, struct sockaddr_in *cli_addr) {
 	int bytes_written;
 	int file_size;
@@ -147,6 +142,7 @@ void* clientThread(void* connection_struct) {
 
 	int socket;
 	char client_id[MAXNAME];
+	char *client_ip;
 	
 	Connection *connection = (Connection*) malloc(sizeof(Connection));
 	Client *client = (Client*) malloc(sizeof(Client));
@@ -155,7 +151,7 @@ void* clientThread(void* connection_struct) {
 	
 	connection = (Connection*) connection_struct;
 	socket = connection->socket_id;
-	//client_ip = connection->ip;
+	client_ip = connection->ip;
 	strncpy(client_id, connection->client_id, MAXNAME);
 	client_id[MAXNAME - 1] = '\0';
 
@@ -191,9 +187,12 @@ void* clientThread(void* connection_struct) {
 				return NULL;
 			}
 		}
-		//sync_server()
+		/* starts sync */
+		//sync_server(socket, client); -> NOT TESTED YET
 
 		int connected = TRUE;
+
+		/*---------------------------------------------- ALTERAR !!!! -----------------------------------------------------------*/
 		char buffer[BUFFER_SIZE];
 		bzero(buffer, BUFFER_SIZE);
 
@@ -247,7 +246,8 @@ void wait_connection(int sockid) {
 		
 			bzero(packet.buffer, BUFFER_SIZE -1);		
 			strcpy(packet.buffer, "Got yout message\n");
-			packet.ack = TRUE; packet_server.ack = TRUE;
+			strcpy(packet_server.user, SERVER_USER);
+			packet.ack = TRUE; packet_server.ack = TRUE; 
 
 			func_return = sendto(sockid, &packet, sizeof(packet), 0,(struct sockaddr *) &cli_addr, sizeof(struct sockaddr));
 			if (func_return < 0) 
@@ -265,15 +265,15 @@ void wait_connection(int sockid) {
 		/* Starts a new client connection */
 		Connection *connection = malloc(sizeof(*connection));
 
-		new_client_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
- 		if (new_client_socket == ERROR) 
-			printf("Error on attributing new socket\n");
+		//new_client_socket = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+ 		//if (new_client_socket == ERROR) 
+			//printf("Error on attributing new socket\n");
 
 		/* For debug */
 		//else
 			//printf("Socket of the new user %i\n", new_client_socket);
 
-		connection->socket_id = new_client_socket;
+		connection->socket = sockid;
 		connection->ip = client_ip;
 		/* Field buffer is used to get information from client */
 		strcpy(connection->buffer, packet.buffer);
@@ -326,7 +326,6 @@ int main(int argc, char *argv[]) {
 		/* Checking if the server dir exists
 			-> if not, creates it using mkdir with 0777 (full access) permission
 			-> uses 'sys/stat.h' lib */
-
 		if(check_dir(serverInfo.folder) == FALSE) {
 			if(mkdir(serverInfo.folder, 0777) != SUCCESS) {
 				printf("Error creating server folder '%s'.\n", serverInfo.folder);

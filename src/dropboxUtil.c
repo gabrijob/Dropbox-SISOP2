@@ -1,9 +1,9 @@
 #ifndef UTIL_CODE
 #define UTIL_CODE
 
-int ID_MSG_CLIENT = 0;
-
 #include "dropboxUtil.h"
+
+int ID_MSG_CLIENT = 0;
 
 int contact_server(char *host, int port, UserInfo user) {
 
@@ -62,25 +62,171 @@ int contact_server(char *host, int port, UserInfo user) {
 			printf("Ack 2 on client FALSE\n");
 		DEBUG*/
 
-	}
+	} ID_MSG_CLIENT++; //printf("Got an ack: %s\n", packet.buffer); DEBUG
 
-	ID_MSG_CLIENT++;
-
-	//printf("Got an ack: %s\n", packet.buffer); DEBUG
+	/* Sync the files from user to server */
+	//sync_dir(sockid, user, serv_conn); -> NOT TESTED YET
 
 	return SUCCESS;
 
 }
 
 
-/* Used to sync directories */
-void sync_dir() {
+/* Used to sync client directories */
+void sync_dir(int sockid, UserInfo user, struct sockaddr_in serv_conn) {
+	int controll_thread;
 
+	/* verifies if user folder exists */
+	if(checkdir(user.folder) == FALSE) {
+		if(mkdir(user.folder, 0777) != 0) {
+			printf("Error creating user folder '%s'.\n", user.folder);
+		}
+	}
 
+	synchronize_local(sockid, serv_conn, user);
 
+	synchronize_remote(sockid, serv_conn, user);
 
+	/* cria thread para manter a sincronização local */
+	if((controll_thread = pthread_create(&sync_thread, NULL, watcher, (void *) user.folder))) {
+		printf("Syncronization Thread creation failed: %d\n", controll_thread);
+	}
 }
 
+/* Used to sync server files */
+void sync_server(int sock_s, Client *client_s) {
+
+	synchronize_client(sock_s, client_s);
+
+	synchronize_server(sock_s, client_s);
+}
+
+/* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! LICENSE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+void *dir_content_thread(void *ptr) {
+   struct dir_content *args = (struct dir_content *) ptr;
+
+   get_dir_content(args->path, args->files, args->counter);
+
+   pthread_exit(NULL);
+   return NULL;
+}
+
+int get_dir_file_info(char * path, FileInfo files[]) {
+	struct d_file dfiles[MAXFILES];
+  	char path_file[MAXNAME*2 + 1];
+  	int counter = 0;
+
+  	get_dir_content(path, dfiles, &counter);
+
+  	for(int i = 0; i < counter; i++) {
+  		strcpy(files[i].name, dfiles[i].name);
+    		sprintf(path_file, "%s/%s", dfiles[i].path, dfiles[i].name);
+  		getModifiedTime((char*) &path_file, (char*) &files[i].last_modified);
+    		getFileExtension(dfiles[i].name, (char*) &files[i].extension);
+  		files[i].size = getFileSize(dfiles[i].path);
+  	}
+  	return counter;
+}
+
+void getFileExtension(const char *filename, char* extension) {
+	const char *dot = strrchr(filename, '.');
+  	if(!dot || !strcmp(dot, filename)) {
+    		strcpy(extension, "");
+  	} else {
+  		strcpy(extension, dot+1);
+  	}
+}
+
+pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+int get_dir_content(char * path, struct d_file files[], int* counter) {
+	DIR * d = opendir(path);
+  	if(d == NULL) {
+    		return FILE_NOT_FOUND;
+  	}
+
+  	struct dirent * entry;
+  	while (((entry = readdir(d)) != NULL) && (*counter) < MAXFILES) {
+    		if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
+      			struct d_file newFile;
+      			strcpy(newFile.path, path);
+      			strcpy(newFile.name, entry->d_name);
+
+      			pthread_mutex_lock(&lock);
+      			memcpy(&files[(*counter)], &newFile, sizeof(newFile));
+      			(*counter)++;
+      			pthread_mutex_unlock(&lock);
+
+      			int rc;
+      			pthread_t thread;
+      			if(entry->d_type == DT_DIR) { // Arquivo é um diretório
+        			struct dir_content args;
+        			args.path = malloc(sizeof(char) * MAXNAME * 2 + 1); // MAXNAME + / + MAXNAME
+
+        			sprintf(args.path, "%s/%s", newFile.path, newFile.name);
+        			args.files = files;
+        			args.counter = counter;
+
+        			if((rc = pthread_create(&thread, NULL, &dir_content_thread, (void *) &args))) {
+          				printf("Thread creation failed: %d\n", rc);
+        			}
+
+        			pthread_join(thread, NULL);
+      			}
+    		}
+  	}
+
+  	closedir(d);
+	return 0;
+}
+/* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! LICENSE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
+
+
+
+/* Gets modification time of file using lib time.h */
+void getModifiedTime(char *path, char *last_modified) {
+	struct stat attr;
+	stat(path, &attr);
+
+	strftime(last_modified, 20, "%Y.%m.%d %H:%M:%S", localtime(&(attr.st_mtime)));
+}
+
+/* Gets current time using lib time.h */
+time_t getTime(char* last_modified){
+	time_t result = 0;
+
+	int year = 0, month = 0, day = 0, hour = 0, min = 0, sec = 0;
+
+	if (sscanf(last_modified, "%4d.%2d.%2d %2d:%2d:%2d", &year, &month, &day, &hour, &min, &sec) == 6) {
+		struct tm breakdown = { 0 };
+		breakdown.tm_year = year - 1900; /* years since 1900 */
+		breakdown.tm_mon = month - 1;
+		breakdown.tm_mday = day;
+		breakdown.tm_hour = hour;
+		breakdown.tm_min = min;
+		breakdown.tm_sec = sec;
+
+		if ((result = mktime(&breakdown)) == (time_t)-1) {
+			fprintf(stderr, "Could not convert time input to time_t\n");
+			return EXIT_FAILURE;
+		}
+
+		return result;
+	} else {
+		printf("The input was not a valid time format: %s\n", last_modified);
+		return ERROR;
+	}
+}
+
+/* Gets the oldest fle
+	-> returns SUCCESS if aux file is older than the modified date */
+int older_file(char *last_modified, char *aux) {
+	time_t time_f1 = getTime(last_modified);
+	time_t time_f2 = getTime(aux);
+
+	if(difftime(time_f1, time_f2) > 0)
+		return SUCCESS;
+	return 0;
+}
 
 /*
 	getpwuid() --> Gets users initial working directory

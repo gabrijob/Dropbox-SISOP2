@@ -17,7 +17,6 @@ util:	$(SRC_DIR)dropboxUtil.c
 	@echo "\nCompilando módulos utilitários..."
 	$(CC) $(CFLAGS) -c -o $(BIN_DIR)dropboxUtil.o -I$(INC_DIR) $(SRC_DIR)dropboxUtil.c
 
-
 client: $(SRC_DIR)dropboxClient.c util  
 	@echo "Linkando objetos e compilando aplicação do cliente."
 	$(CC) $(CFLAGS) -o $(DST_DIR)dropboxClient $(SRC_DIR)dropboxClient.c $(OBJ_FILES) -pthread -I$(INC_DIR)
