@@ -3,10 +3,10 @@
 
 #include "dropboxUtil.h"
 
-/*typedef struct user_info {
+/ypedef struct user_info {
 	char id[MAXNAME];
   	char folder[MAXNAME*2];
-}UserInfo;*/
+}UserInfo;
 
 
 int login_server(char *host, int port);
