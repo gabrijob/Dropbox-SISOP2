@@ -20,6 +20,8 @@
 #include <pthread.h>
 #include <semaphore.h>
 
+#define DYN_PORT_START 49153
+#define DYN_PORT_END 65535
 #define DEFAULT_PORT 3000
 #define DEFAULT_ADDRESS "127.0.0.1"
 #define SERVER_FOLDER "syncBox_users"
@@ -37,6 +39,8 @@
 #define FALSE !(TRUE)
 
 #define END_REQ "END SESSION REQUEST"
+#define UP_REQ "FILE UPLOAD REQUEST"
+#define F_NAME_REQ "FILE NAME REQUEST"
 
 typedef struct file_info{
 	char name[MAXNAME];
@@ -61,6 +65,7 @@ typedef struct connection_info{
 	char client_id[MAXNAME];
 	char* ip;
 	char buffer[BUFFER_SIZE];
+	int port;
 }Connection;
 
 typedef struct client{
@@ -102,10 +107,10 @@ void sync_server(int sock_s, Client *client_s);
 int get_dir_file_info(char * path, FileInfo files[]);
 void getFileExtension(const char *filename, char* extension);
 void *dir_content_thread(void *ptr);
-int get_dir_content(char * path, struct d_file files[], int* counter);
+//int get_dir_content(char *path, struct d_file files[], int* counter);
 
 void getModifiedTime(char *path, char *last_modified);
-void getTime(char *last_modified);
+time_t getTime(char *last_modified);
 int older_file(char *last_modified, char *aux);
 int newDevice(Client* client, int socket);
 int fileExists(char* filename);

@@ -10,13 +10,12 @@
 #include "stdlib.h"
 #include "stdio.h"
 
-
 /*   Global variables   */
 UserInfo user;
 /////////////////////////
 
 int login_server(char *host, int port) {
-	struct sockaddr_in si_other;
+	/*struct sockaddr_in si_other;
 	char buffer[BUFFER_SIZE]
 	int sockid, i, socketid_len = sizeof(si_other);
 
@@ -64,7 +63,7 @@ int login_server(char *host, int port) {
 	}
 	else
 		printf("Success in login_server()\n");
-		return SUCCESS;
+		return SUCCESS;*/
 }
 
 void sync_client() {
@@ -72,9 +71,88 @@ void sync_client() {
 
 }
 
-void send_file(char *file) {
+void send_file(char *filename, int sockid, struct sockaddr_in *serv_conn) {
+	char filepath[MAXNAME];
+	int file_size;
+	int bytes_sent;
+	int func_return;
+	strcpy(filepath, filename);
 
+	Frame packet;
+	bzero(packet.user, MAXNAME-1);
+	strcpy(packet.user, user.id);
+	bzero(packet.buffer, BUFFER_SIZE -1);
+	packet.ack = FALSE;
 
+	printf("\nRequisitando envio de arquivo para porta-%d/socket-%d", ntohs(serv_conn->sin_port), sockid); //DEBUG
+	
+	/* Sends upload request to server */
+	strcpy(packet.buffer, UP_REQ);
+	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
+	if (func_return < 0) {
+		printf("ERROR sendto\n");
+		return;
+	}
+
+	/* Receive ack from server */
+	struct sockaddr_in from;
+	unsigned int length = sizeof(struct sockaddr_in);
+	func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
+	if (func_return < 0) {
+		printf("ERROR recvfrom\n");
+		return;
+	}
+
+	if(packet.ack == FALSE) {
+		printf("\nREQUEST TO UPLOAD NEGATED");
+		return;
+	}
+
+	if(strcmp(packet.buffer, F_NAME_REQ) == 0) {
+		//Pegar apenas o nome do arquivo ou o path ?
+		strcpy(packet.buffer, filepath);
+		printf("\nEnviando arquivo: %s\n", packet.buffer); //DEBUG
+		func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
+		if (func_return < 0) {
+			printf("ERROR sendto\n");
+			return;
+		}
+	}
+/*
+	FILE* file;
+	file = fopen(filepath, "rb");
+
+	if(file) {
+		file_size = getFileSize(file);
+		if(file_size == 0) {
+			fclose(file);
+			return;
+		}
+
+		sprintf(packet.buffer, "%d", file_size);
+		//packet.ack == FALSE;
+		/* Sends the file size to the server*//*
+		func_return = sendto(sockid, &packet, sizeof(packet), 0,(struct sockaddr *) serv_conn, sizeof(struct sockaddr));
+		if (func_return < 0) 
+			printf("ERROR on sendto\n");
+	
+		/* Sends the file in BUFFER_SIZE sized parts*//*
+		bytes_sent = 0;
+		while(!feof(file)) {
+			fread(packet.buffer, sizeof(char), BUFFER_SIZE, file);
+			bytes_sent += sizeof(char) * BUFFER_SIZE;
+
+			func_return = sendto(sockid, &packet, sizeof(packet), 0,(struct sockaddr *) serv_conn, sizeof(struct sockaddr));
+			if (func_return < 0) 
+				printf("ERROR on sendto\n");
+
+			printf("\n Sending file %s - Total: %d / Read: %d", filepath, file_size, bytes_sent); //DEBUG
+		}
+		printf("\n Finished sending file %s", filepath);
+		fclose(file);
+	}
+	else
+		printf("\nErro ao abrir o arquivo %s\n", filepath);*/
 }
 
 void get_file(char *file) {
@@ -133,8 +211,15 @@ int main(int argc, char *argv[]) {
 	        -> Opens a socket UDP */
 	sockid = contact_server(address, port, user); 
 	if (sockid == SUCCESS) {
-
-		printf("Ready to show menu\n");
+		//printf("Ready to show menu\n");
+		/*Cria sync_dir do usuário se não existir*/
+		sprintf(user.folder, "%s/sync_dir_%s", getUserHome(),user.id);
+		if(check_dir(user.folder) == FALSE) {
+			if(mkdir(user.folder, 0777) != SUCCESS) {
+				printf("Error creating server folder '%s'.\n", user.folder);
+				return ERROR;
+			}
+		}
 
 	} else {
 		printf("Could not connect to server '%s' at port '%d'\n", address, port);

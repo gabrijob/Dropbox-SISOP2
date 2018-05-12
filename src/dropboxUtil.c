@@ -2,6 +2,7 @@
 #define UTIL_CODE
 
 #include "dropboxUtil.h"
+#include "dropboxClient.h"
 
 int ID_MSG_CLIENT = 0;
 
@@ -49,7 +50,7 @@ int contact_server(char *host, int port, UserInfo user) {
 		else
 			printf("Ack 1 on client FALSE\n");
 		DEBUG*/
-	
+		
 		length = sizeof(struct sockaddr_in);
 		func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
 		if (func_return < 0) {
@@ -67,6 +68,22 @@ int contact_server(char *host, int port, UserInfo user) {
 	/* Sync the files from user to server */
 	//sync_dir(sockid, user, serv_conn); -> NOT TESTED YET
 
+/*--------------------TESTE-----------------------------------------*/
+	printf("Inicio teste send");
+	/*Cria sync_dir do usuário se não existir*/
+	if(check_dir(user.folder) == FALSE) {
+		if(mkdir(user.folder, 0777) != SUCCESS) {
+			printf("Error creating server folder '%s'.\n", user.folder);
+			return ERROR;
+		}
+	}
+	/*Envia um arquivo qualquer*/
+	serv_conn.sin_port = htons(atoi(packet.buffer));
+	send_file("shitfile.txt", sockid, &serv_conn);
+	/*Recebe um arquivo qualquer*/
+
+/*--------------------TESTE-----------------------------------------*/
+
 	return SUCCESS;
 
 }
@@ -74,10 +91,10 @@ int contact_server(char *host, int port, UserInfo user) {
 
 /* Used to sync client directories */
 void sync_dir(int sockid, UserInfo user, struct sockaddr_in serv_conn) {
-	int controll_thread;
+	/*int controll_thread;
 
 	/* verifies if user folder exists */
-	if(checkdir(user.folder) == FALSE) {
+	/*if(checkdir(user.folder) == FALSE) {
 		if(mkdir(user.folder, 0777) != 0) {
 			printf("Error creating user folder '%s'.\n", user.folder);
 		}
@@ -88,31 +105,31 @@ void sync_dir(int sockid, UserInfo user, struct sockaddr_in serv_conn) {
 	synchronize_remote(sockid, serv_conn, user);
 
 	/* cria thread para manter a sincronização local */
-	if((controll_thread = pthread_create(&sync_thread, NULL, watcher, (void *) user.folder))) {
+	/*if((controll_thread = pthread_create(&sync_thread, NULL, watcher, (void *) user.folder))) {
 		printf("Syncronization Thread creation failed: %d\n", controll_thread);
-	}
+	}*/
 }
 
 /* Used to sync server files */
 void sync_server(int sock_s, Client *client_s) {
-
+/*
 	synchronize_client(sock_s, client_s);
 
-	synchronize_server(sock_s, client_s);
+	synchronize_server(sock_s, client_s);*/
 }
 
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! LICENSE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 void *dir_content_thread(void *ptr) {
-   struct dir_content *args = (struct dir_content *) ptr;
+   /*struct dir_content *args = (struct dir_content *) ptr;
 
    get_dir_content(args->path, args->files, args->counter);
 
    pthread_exit(NULL);
-   return NULL;
+   return NULL;*/
 }
 
 int get_dir_file_info(char * path, FileInfo files[]) {
-	struct d_file dfiles[MAXFILES];
+	/*struct d_file dfiles[MAXFILES];
   	char path_file[MAXNAME*2 + 1];
   	int counter = 0;
 
@@ -125,7 +142,7 @@ int get_dir_file_info(char * path, FileInfo files[]) {
     		getFileExtension(dfiles[i].name, (char*) &files[i].extension);
   		files[i].size = getFileSize(dfiles[i].path);
   	}
-  	return counter;
+  	return counter;*/
 }
 
 void getFileExtension(const char *filename, char* extension) {
@@ -136,9 +153,9 @@ void getFileExtension(const char *filename, char* extension) {
   		strcpy(extension, dot+1);
   	}
 }
-
+/*
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-int get_dir_content(char * path, struct d_file files[], int* counter) {
+int get_dir_content(char *path, struct d_file files[], int* counter) {
 	DIR * d = opendir(path);
   	if(d == NULL) {
     		return FILE_NOT_FOUND;
@@ -177,7 +194,7 @@ int get_dir_content(char * path, struct d_file files[], int* counter) {
 
   	closedir(d);
 	return 0;
-}
+}*/
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! LICENSE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
 
@@ -191,7 +208,7 @@ void getModifiedTime(char *path, char *last_modified) {
 }
 
 /* Gets current time using lib time.h */
-time_t getTime(char* last_modified){
+time_t getTime(char *last_modified){
 	time_t result = 0;
 
 	int year = 0, month = 0, day = 0, hour = 0, min = 0, sec = 0;

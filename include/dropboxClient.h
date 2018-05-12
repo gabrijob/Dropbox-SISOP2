@@ -3,17 +3,12 @@
 
 #include "dropboxUtil.h"
 
-/ypedef struct user_info {
-	char id[MAXNAME];
-  	char folder[MAXNAME*2];
-}UserInfo;
-
 
 int login_server(char *host, int port);
 
 void sync_client();
 
-void send_file(char *file);
+void send_file(char *file, int sockid, struct sockaddr_in *serv_conn);
 
 void get_file(char *file);
 
