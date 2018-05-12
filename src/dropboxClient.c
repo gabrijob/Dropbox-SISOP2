@@ -134,12 +134,15 @@ void sync_client() {
 
 }
 
-void send_file(char *filename, int sockid, struct sockaddr_in *serv_conn) {
+void send_file(char *filename) {
 	char filepath[3*MAXNAME];
 	int file_size;
 	int bytes_sent;
 	int func_return;
 	sprintf(filepath, "%s/%s", user.folder, filename);
+
+	int sockid = user.socket_id;
+	struct sockaddr_in* serv_conn = user.serv_conn;
 
 	Frame packet;
 	bzero(packet.user, MAXNAME-1);
@@ -219,9 +222,92 @@ void send_file(char *filename, int sockid, struct sockaddr_in *serv_conn) {
 		printf("\nErro ao abrir o arquivo %s\n", filepath);
 }
 
-void get_file(char *file) {
+void get_file(char *filename) {
+	int file_size;
+	int bytes_received;
+	int func_return;
+
+	int sockid = user.socket_id;
+	struct sockaddr_in* serv_conn = user.serv_conn;
+
+	Frame packet;
+	bzero(packet.user, MAXNAME-1);
+	strcpy(packet.user, user.id);
+	bzero(packet.buffer, BUFFER_SIZE -1);
+	packet.ack = FALSE;
 
 
+	/* Sends download request to server */
+	strcpy(packet.buffer, DOWN_REQ);
+	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
+	if (func_return < 0) {
+		printf("ERROR sendto\n");
+		return;
+	}
+
+	/* Receive ack from server */
+	struct sockaddr_in from;
+	unsigned int length = sizeof(struct sockaddr_in);
+	func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
+	if (func_return < 0) {
+		printf("ERROR recvfrom\n");
+		return;
+	}
+
+	if(packet.ack == FALSE) {
+		printf("\nREQUEST TO DOWNLOAD NEGATED");
+		return;
+	}
+
+	if(strcmp(packet.buffer, F_NAME_REQ) == 0) {
+		//Pegar apenas o nome do arquivo ou o path ?
+		strcpy(packet.buffer, filename);
+		printf("\nPedindo arquivo: %s\n", packet.buffer); //DEBUG
+		func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
+		if (func_return < 0) {
+			printf("ERROR sendto\n");
+			return;
+		}
+	}
+
+	char filepath[3*MAXNAME];
+	sprintf(filepath, "%s/%s", user.folder, filename);
+	printf("Receiving file at %s", filepath); //DEBUG
+	FILE* file;
+	file = fopen(filepath, "wb");
+
+	if(file) {
+		/* Receives the file size from server */
+		func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
+		if (func_return < 0) 
+			printf("ERROR recvfrom\n");
+
+		file_size = atoi(packet.buffer);
+		
+		bzero(packet.buffer, BUFFER_SIZE -1);		
+		packet.ack = TRUE;
+
+		bytes_received = 0;
+		while(file_size > bytes_received) {
+			func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
+			if (func_return < 0) 
+				printf("ERROR recvfrom\n");
+
+			if((file_size - bytes_received) > BUFFER_SIZE) {
+				fwrite(packet.buffer, sizeof(char), BUFFER_SIZE, file);
+				bytes_received += sizeof(char) * BUFFER_SIZE; 
+			}
+			else {
+				fwrite(packet.buffer, sizeof(char), (file_size - bytes_received), file);
+				bytes_received += sizeof(char) * (file_size - bytes_received);
+			}
+			printf("\n Receiving file %s - Total: %d / Written: %d", filename, file_size, bytes_received); //DEBUG
+		}
+		printf("\n Finished receiving file %s", filename); //DEBUG
+		fclose(file);
+	}
+	else
+		printf("\nErro ao abrir o arquivo %s", filepath);
 }
 
 void delete_file(char *file) {
@@ -256,7 +342,11 @@ void client_menu() {
 
 			/* UPLOAD */
 			if(strcmp(command, "upload") == 0) {
-				send_file(attribute, user.socket_id, user.serv_conn);
+				send_file(attribute);
+			}
+			/* DOWNLOAD */
+			else if(strcmp(command, "download") == 0) {
+				get_file(attribute);
 			}
 
 		}

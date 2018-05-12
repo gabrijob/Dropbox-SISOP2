@@ -60,19 +60,23 @@ void receive_file(char* filename, int sockid, int id) {
 		fclose(file);
 	}
 	else
-		printf("Erro ao abrir o arquivo %s", filename);
+		printf("Erro ao abrir o arquivo %s", filepath);
 }
 
 
-void send_file(char *filename, int sockid, struct sockaddr_in *cli_addr) {
+void send_file(char *filename, int sockid, int id, struct sockaddr_in *cli_addr) {
+	char filepath[3*MAXNAME];
 	int bytes_sent;
 	int file_size;
 	int func_return;
 
 	Frame packet;
 
+	sprintf(filepath, "%s/%d/%s", serverInfo.folder, id, filename);
+	printf("Sending file at %s", filepath); //DEBUG
+
 	FILE* file;
-	file = fopen(filename, "rb");
+	file = fopen(filepath, "rb");
 	
 	if(file) {
 		file_size = getFileSize(file);
@@ -105,7 +109,7 @@ void send_file(char *filename, int sockid, struct sockaddr_in *cli_addr) {
 		fclose(file);
 	}
 	else
-		printf("Erro ao abrir o arquivo %s", filename);
+		printf("Erro ao abrir o arquivo %s", filepath);
 }
 
 
@@ -181,11 +185,12 @@ int new_server_port(char *address, Connection* connection) {
 void select_commands(Frame* packet, struct sockaddr_in *cli_addr, int socket) {
 	int func_return;
 	socklen_t clilen = sizeof(struct sockaddr_in);
+	packet->ack = TRUE;
 
 	/* UPLOAD */
 	if(strcmp(packet->buffer, UP_REQ) == 0) {
-		packet->ack = TRUE;
 		strcpy(packet->buffer, F_NAME_REQ);
+		/* Request filename */
 		func_return = sendto(socket, packet, sizeof(*packet), 0,(struct sockaddr *) cli_addr, sizeof(struct sockaddr));
 		if (func_return < 0) 
 			printf("ERROR on sendto\n");
@@ -197,7 +202,24 @@ void select_commands(Frame* packet, struct sockaddr_in *cli_addr, int socket) {
 		char filename[MAXNAME];
 		sprintf(filename, "%s", packet->buffer);
 		receive_file(filename, socket, atoi(packet->user));	
+	} 
+	/* DOWNLOAD */
+	else if(strcmp(packet->buffer, DOWN_REQ) == 0) {
+		strcpy(packet->buffer, F_NAME_REQ);
+		/* Request filename */
+		func_return = sendto(socket, packet, sizeof(*packet), 0,(struct sockaddr *) cli_addr, sizeof(struct sockaddr));
+		if (func_return < 0) 
+			printf("ERROR on sendto\n");
+
+		func_return = recvfrom(socket, packet, sizeof(*packet), 0, (struct sockaddr *) cli_addr, &clilen);
+		if (func_return < 0) 
+			printf("ERROR on recvfrom\n");
+
+		char filename[MAXNAME];
+		sprintf(filename, "%s", packet->buffer);
+		send_file(filename, socket, atoi(packet->user), cli_addr);		
 	}
+
 }
 
 void* clientThread(void* connection_struct) {

@@ -8,9 +8,9 @@ int login_server(char *host, int port);
 
 void sync_client();
 
-void send_file(char *file, int sockid, struct sockaddr_in *serv_conn);
+void send_file(char *filename);
 
-void get_file(char *file);
+void get_file(char *filename);
 
 void delete_file(char *file);
 
