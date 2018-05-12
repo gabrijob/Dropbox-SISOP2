@@ -2,12 +2,11 @@
 #define UTIL_CODE
 
 #include "dropboxUtil.h"
-#include "dropboxClient.h"
 
-int ID_MSG_CLIENT = 0;
+
 
 int contact_server(char *host, int port, UserInfo user) {
-
+	int ID_MSG_CLIENT = 0;
 	//char buffer[BUFFER_SIZE];
 	int func_return, sockid;
 	unsigned int length;
@@ -68,8 +67,6 @@ int contact_server(char *host, int port, UserInfo user) {
 	/* Sync the files from user to server */
 	//sync_dir(sockid, user, serv_conn); -> NOT TESTED YET
 
-/*--------------------TESTE-----------------------------------------*/
-	printf("Inicio teste send");
 	/*Cria sync_dir do usuário se não existir*/
 	if(check_dir(user.folder) == FALSE) {
 		if(mkdir(user.folder, 0777) != SUCCESS) {
@@ -77,15 +74,7 @@ int contact_server(char *host, int port, UserInfo user) {
 			return ERROR;
 		}
 	}
-	/*Envia um arquivo qualquer*/
-	serv_conn.sin_port = htons(atoi(packet.buffer));
-	send_file("shitfile.txt", sockid, &serv_conn);
-	/*Recebe um arquivo qualquer*/
-
-/*--------------------TESTE-----------------------------------------*/
-
 	return SUCCESS;
-
 }
 
 

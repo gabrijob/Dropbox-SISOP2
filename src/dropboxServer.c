@@ -9,41 +9,50 @@ ServerInfo serverInfo;
 sem_t semaphore;
 
 
-void receive_file(char* filename, int sockid, struct sockaddr_in *cli_addr) {
+void receive_file(char* filename, int sockid, int id) {
+	char filepath[3*MAXNAME];
 	int bytes_received;
 	int file_size;
 	int func_return;
 	
-	Frame packet;		
+	Frame packet;
+	struct sockaddr_in cli_addr;		
 	socklen_t clilen = sizeof(struct sockaddr_in);
 
+	sprintf(filepath, "%s/%d/%s", serverInfo.folder, id, filename);
+	printf("Receiving file at %s", filepath); //DEBUG
 	FILE* file;
-	file = fopen(filename, "wb");
+	file = fopen(filepath, "wb");
 
 	if(file) {
 		/* Receives the file size from client*/
-		func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) cli_addr, &clilen);
+		func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
 		if (func_return < 0) 
 			printf("ERROR on recvfrom\n");
-		file_size = atoi(packet.buffer);
 		
+		file_size = atoi(packet.buffer);
+		if(file_size == 0) {
+			fclose(file);
+			return;
+		}
+
 		bzero(packet.buffer, BUFFER_SIZE -1);		
 		packet.ack = TRUE;
 
 		/* Receives the file in BUFFER_SIZE sized parts*/
 		bytes_received = 0;
 		while(file_size > bytes_received) {
-			func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) cli_addr, &clilen);
+			func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
 			if (func_return < 0) 
 				printf("ERROR on recvfrom\n");
 
-			if((file_size = bytes_received) > BUFFER_SIZE) {
+			if((file_size - bytes_received) > BUFFER_SIZE) {
 				fwrite(packet.buffer, sizeof(char), BUFFER_SIZE, file);
 				bytes_received += sizeof(char) * BUFFER_SIZE; 
 			}
 			else {
-				fwrite(packet.buffer, sizeof(char), (file_size = bytes_received), file);
-				bytes_received += sizeof(char) * (file_size = bytes_received);
+				fwrite(packet.buffer, sizeof(char), (file_size - bytes_received), file);
+				bytes_received += sizeof(char) * (file_size - bytes_received);
 			}
 			printf("\n Receiving file %s - Total: %d / Written: %d", filename, file_size, bytes_received); //DEBUG
 		} 
@@ -169,6 +178,28 @@ int new_server_port(char *address, Connection* connection) {
 	return SUCCESS;	
 }
 
+void select_commands(Frame* packet, struct sockaddr_in *cli_addr, int socket) {
+	int func_return;
+	socklen_t clilen = sizeof(struct sockaddr_in);
+
+	/* UPLOAD */
+	if(strcmp(packet->buffer, UP_REQ) == 0) {
+		packet->ack = TRUE;
+		strcpy(packet->buffer, F_NAME_REQ);
+		func_return = sendto(socket, packet, sizeof(*packet), 0,(struct sockaddr *) cli_addr, sizeof(struct sockaddr));
+		if (func_return < 0) 
+			printf("ERROR on sendto\n");
+
+		func_return = recvfrom(socket, packet, sizeof(*packet), 0, (struct sockaddr *) cli_addr, &clilen);
+		if (func_return < 0) 
+			printf("ERROR on recvfrom\n");
+					
+		char filename[MAXNAME];
+		sprintf(filename, "%s", packet->buffer);
+		receive_file(filename, socket, atoi(packet->user));	
+	}
+}
+
 void* clientThread(void* connection_struct) {
 
 	puts("Reached control thread");
@@ -229,8 +260,7 @@ void* clientThread(void* connection_struct) {
 
 		/* Waits for commands */
 		while(connected == TRUE) {
-			printf("\nWaiting for commands from client-%s at port-%d/socket-%d\n", client_id, connection->port, socket);
-
+			printf("\nWaiting for commands from client-%s at port-%d/socket-%d\n", client_id, connection->port, socket); //DEBUG
 			bzero(packet.buffer, BUFFER_SIZE -1);
 			func_return = recvfrom(socket, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
 			if (func_return < 0) 
@@ -241,24 +271,8 @@ void* clientThread(void* connection_struct) {
 				sem_post(&semaphore);
 			}
 			else {
-				//select_commands()
-				printf("\nComando recebido: %s", packet.buffer);
-				/*Teste receive file por enquanto*/
-				packet.ack = TRUE;
-				strcpy(packet.buffer, F_NAME_REQ);
-				func_return = sendto(socket, &packet, sizeof(packet), 0,(struct sockaddr *) &cli_addr, sizeof(struct sockaddr));
-				if (func_return < 0) 
-					printf("ERROR on sendto\n");
-
-				func_return = recvfrom(socket, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
-				if (func_return < 0) 
-					printf("ERROR on recvfrom\n");
-				
-				char filename[MAXNAME];
-				sprintf(filename, "%s", packet.buffer);
-				//receive_file(filename, socket, &cli_addr);
-				
-
+				//printf("\nComando recebido: %s", packet.buffer);
+				select_commands(&packet, &cli_addr, socket);
 			}
 		}
 	}

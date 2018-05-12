@@ -58,6 +58,8 @@ typedef struct server_info {
 typedef struct user_info {
 	char id[MAXNAME];
 	char folder[MAXNAME * 2];
+	int socket_id;
+	struct sockaddr_in *serv_conn;
 }UserInfo;
 
 typedef struct connection_info{
