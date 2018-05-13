@@ -17,11 +17,19 @@ util:	$(SRC_DIR)dropboxUtil.c
 	@echo "\nCompilando módulos utilitários..."
 	$(CC) $(CFLAGS) -c -o $(BIN_DIR)dropboxUtil.o -I$(INC_DIR) $(SRC_DIR)dropboxUtil.c
 
-client: $(SRC_DIR)dropboxClient.c util  
+client-sync:	$(SRC_DIR)sync-client.c
+	@echo "\nCompilando sync-client..."
+	$(CC) $(FLAGS) -o $(BIN_DIR)sync-client.o -I$(INC_DIR) $(SRC_DIR)sync-client.c
+
+client: $(SRC_DIR)dropboxClient.c util client-sync 
 	@echo "Linkando objetos e compilando aplicação do cliente."
 	$(CC) $(CFLAGS) -o $(DST_DIR)dropboxClient $(SRC_DIR)dropboxClient.c $(OBJ_FILES) -pthread -I$(INC_DIR)
 
-server:	$(SRC_DIR)dropboxServer.c util 
+server-sync:	$(SRC_DIR)sync-server.c
+	@echo "\nCompilando sync-server..."
+	$(CC) $(FLAGS) -o $(BIN_DIR)sync-server.o -I$(INC_DIR) $(SRC_DIR)sync-server.c
+
+server:	$(SRC_DIR)dropboxServer.c util server-sync
 	@echo "Linkando objetos e compilando aplicação do servidor."
 	$(CC) $(CFLAGS) -o $(DST_DIR)dropboxServer $(SRC_DIR)dropboxServer.c $(OBJ_FILES) -pthread -I$(INC_DIR)
 

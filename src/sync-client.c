@@ -2,12 +2,6 @@
 #define EVENT_SIZE (sizeof(struct inotify_event))
 #define EVENT_BUF_LEN (1024 * (EVENT_SIZE))
 
-/* Communication constants */
-#define S_SYNC "sync"
-#define S_NSYNC "not_sync"
-#define S_OK "ok"
-#define S_GET "get"
-
 #include "dropboxClient.h"
 
 void synchronize_local(int sockid, struct sockaddr_in serv_addr, UserInfo user) {

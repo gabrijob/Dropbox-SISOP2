@@ -1,10 +1,5 @@
 #include "dropboxServer.h"
 
-#define S_SYNC "sync"
-#define S_NSYNC "not_sync"
-#define S_DOWNLOAD "download"
-#define S_GET "get"
-
 void synchronize_client(int sockid, Client* client_sync) { // executa primeiro
 
 	char buffer[BUFFER_SIZE];	

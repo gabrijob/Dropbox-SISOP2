@@ -38,12 +38,19 @@
 #define TRUE 1
 #define FALSE !(TRUE)
 
+/* Communication constants */
 #define END_REQ "END SESSION REQUEST"
 #define UP_REQ "FILE UPLOAD REQUEST"
 #define F_NAME_REQ "FILE NAME REQUEST"
 #define DOWN_REQ "FILE DOWNLOAD REQUEST"
 #define DEL_REQ "FILE DELETE REQUEST"
 #define DEL_COMPLETE "FILE DELETED"
+
+#define S_SYNC "sync"
+#define S_NSYNC "not_sync"
+#define S_DOWNLOAD "download"
+#define S_GET "get"
+#define S_UPLOAD "upload"
 
 typedef struct file_info{
 	char name[MAXNAME];
