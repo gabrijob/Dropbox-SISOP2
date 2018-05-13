@@ -8,7 +8,7 @@ int login_server(char *host, int port);
 
 void sync_client();
 
-void send_file(char *filename);
+void send_file_client(char *filename);
 
 void get_file(char *filename);
 

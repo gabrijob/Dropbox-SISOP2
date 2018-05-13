@@ -1,6 +1,11 @@
+#ifndef SYNC_CLIENT_CODE
+#define SYNC_CLIENT_CODE
+
+
 /* Defining constants to the watcher thread */
 
-#include "dropboxClient.h"
+#include "sync-client.h"
+#include "dropboxUtil.h"
 
 void synchronize_local(int sockid, struct sockaddr_in serv_addr, UserInfo user) {
 
@@ -201,3 +206,4 @@ void synchronize_remote(int sockid, struct sockaddr_in serv_addr, UserInfo user)
 	printf("End of server sync\n");		//debug
 }
 
+#endif

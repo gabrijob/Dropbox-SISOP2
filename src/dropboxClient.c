@@ -78,12 +78,9 @@ int login_server(char *host, int port) {
 	return SUCCESS;
 }
 
-void sync_client() {
 
 
-}
-
-void send_file(char *filename) {
+void send_file_client(char *filename) {
 	char filepath[3*MAXNAME];
 	int file_size;
 	int bytes_sent;
@@ -138,7 +135,7 @@ void send_file(char *filename) {
 	file = fopen(filepath, "rb");
 
 	if(file) {
-		file_size = getFileSize(file);
+		file_size = getFilesize(file);
 		if(file_size == 0) {
 			fclose(file);
 			printf("The file is empty\n");
@@ -355,7 +352,7 @@ void client_menu() {
 
 			/* UPLOAD */
 			if(strcmp(command, "upload") == 0) {
-				send_file(attribute);
+				send_file_client(attribute);
 			}
 			/* DOWNLOAD */
 			else if(strcmp(command, "download") == 0) {

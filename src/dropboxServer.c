@@ -64,7 +64,7 @@ void receive_file(char* filename, int sockid, int id) {
 }
 
 
-void send_file(char *filename, int sockid, int id, struct sockaddr_in *cli_addr) {
+void send_file_server(char *filename, int sockid, int id, struct sockaddr_in *cli_addr) {
 	char filepath[3*MAXNAME];
 	int bytes_sent;
 	int file_size;
@@ -79,7 +79,7 @@ void send_file(char *filename, int sockid, int id, struct sockaddr_in *cli_addr)
 	file = fopen(filepath, "rb");
 	
 	if(file) {
-		file_size = getFileSize(file);
+		file_size = getFilesize(file);
 		if(file_size == 0) {
 			fclose(file);
 			return;
@@ -217,7 +217,7 @@ void select_commands(Frame* packet, struct sockaddr_in *cli_addr, int socket) {
 
 		char filename[MAXNAME];
 		sprintf(filename, "%s", packet->buffer);
-		send_file(filename, socket, atoi(packet->user), cli_addr);		
+		send_file_server(filename, socket, atoi(packet->user), cli_addr);		
 	}
 
 }

@@ -2,7 +2,9 @@
 #define UTIL_CODE
 
 #include "dropboxUtil.h"
-
+#include "sync-server.h"
+#include "sync-client.h"
+#include "watcher.h"
 
 
 int contact_server(char *host, int port, UserInfo user) {

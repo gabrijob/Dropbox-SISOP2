@@ -1,4 +1,9 @@
-#include <dropboxClient.h>
+#ifndef WATCHER_CODE
+#define WATCHER_CODE
+
+
+#include "watcher.h"
+
 #define EVENT_SIZE (sizeof(struct inotify_event))
 #define EVENT_BUF_LEN (1024 * (EVENT_SIZE))
 
@@ -60,3 +65,5 @@ void *watcher(void* ptr_path) {
 
 	return SUCCESS;
 }
+
+#endif
