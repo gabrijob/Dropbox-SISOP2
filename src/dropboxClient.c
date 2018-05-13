@@ -262,12 +262,12 @@ void get_file(char *filename) {
 
 void delete_file(char *file) {
 /*
-
 	Frame packet;
 	bzero(packet.user, MAXNAME-1);
 	strcpy(packet.user, user.id);
 	bzero(packet.buffer, BUFFER_SIZE -1);
 	packet.ack = FALSE;
+	int sockid;
 
 	char filename[MAXNAME];
 
@@ -276,7 +276,6 @@ void delete_file(char *file) {
 	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
 	if (func_return < 0) {
 		printf("ERROR sendto DEL_REQ\n");
-		return;
 	}
 
 	//Receive ack from server 
@@ -285,24 +284,30 @@ void delete_file(char *file) {
 	func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
 	if (func_return < 0) {
 		printf("ERROR recvfrom from delete\n");
-		return;
 	}
 
 	if(packet.ack == FALSE) {
 		printf("\nREQUEST TO DELETE NEGATED");
-		return;
 	}
 
+	//Mandando o nome do arquivo pro servidor
 	if(strcmp(packet.buffer, F_NAME_REQ) == 0) {
 		//Pegar apenas o nome do arquivo ou o path ?
 		strcpy(packet.buffer, filename);
 		printf("Deletando arquivo: %s\n", packet.buffer); //DEBUG
 		func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
 		if (func_return < 0) {
-			printf("ERROR sendto\n");
-			return;
+			printf("ERROR sendto F_NAME_REQ\n");
 		}
 
+	//Recebe confirmação do servidor
+	func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
+	if (func_return < 0) {
+		printf("ERROR recvfrom from delete reply\n");
+	}
+	if(strcmp(packet.buffer, DEL_COMPLETE) == 0){
+		printf("Arquivo deletado!");
+	}
 */
 }
 
@@ -322,12 +327,11 @@ void close_session() { //TODO: corrigir segmentation fault
 	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
 	if (func_return < 0) {
 		printf("ERROR sendto END_REQ\n");
-		return;
 	}
 
 	//Fecha o socket do cliente
 	close(user.socket_id);
-*/	
+*/
 }
 
 void client_menu() {
