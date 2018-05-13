@@ -77,56 +77,6 @@ int login_server(char *host, int port) {
 	}
 
 	return SUCCESS;
-//-----------------------LOGIN SERVER DO VILMAR------------------------------------------------------------------
-	/*struct sockaddr_in si_other;
-	char buffer[BUFFER_SIZE]
-	int sockid, i, socketid_len = sizeof(si_other);
-
-//creating socket
-	if ((sockid = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1){
-		printf("Error when creating socket\n");
-		return ERROR;
-	}
-
-//zero out the structure
-	memset((char *) &si_me, 0, sizeof(si_me));
-
-	si_me.sin_family = AF_INET;
-	si_me.sin_port = htons(PORT);
-
-//bind socket to port
-	if (bind(sockid, (struct sockaddr*)&si_me, sizeof(si_me)) == -1){
-		printf("Error when binding socket\n");
-		return ERROR;
-	}
-
-	if((inet_aton(SERVER, &si_other.sin_addr)) == 0){
-		printf("Error in inet_aton()\n");
-	}
-
-//zero out the buffer
-	bzero(buffer, BUFFER_SIZE-1);
-
-	strcpy(buffer, user.id);
-
-//send the id from user to server
-	if((sendto(sockid, buffer, BUFFER_SIZE, 0, (struct sockaddr*) &si_other, slen)) == -1){
-		printf("Error in sento()\n");
-		return ERROR;
-	}
-
-//receive a reply and print it
-//clear the buffer by filling null, it might have previously received data
-	memset(buffer, '\0', BUFFER_SIZE);
-
-//try to receive the id from server, blocking call
-	if((recvfrom(sockid, buffer, 0, (struct sockaddr*) &si_other, slen)) == -1){
-		printf("Error in recvfrom()\n");
-		return ERROR;
-	}
-	else
-		printf("Success in login_server()\n");
-		return SUCCESS;*/
 }
 
 void sync_client() {
@@ -311,13 +261,77 @@ void get_file(char *filename) {
 }
 
 void delete_file(char *file) {
+/*
+	Frame packet;
+	bzero(packet.user, MAXNAME-1);
+	strcpy(packet.user, user.id);
+	bzero(packet.buffer, BUFFER_SIZE -1);
+	packet.ack = FALSE;
+	int sockid;
 
+	char filename[MAXNAME];
 
+	//send delete request to server
+	strcpy(packet.buffer, DEL_REQ);
+	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
+	if (func_return < 0) {
+		printf("ERROR sendto DEL_REQ\n");
+	}
+
+	//Receive ack from server 
+	struct sockaddr_in from;
+	unsigned int length = sizeof(struct sockaddr_in);
+	func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
+	if (func_return < 0) {
+		printf("ERROR recvfrom from delete\n");
+	}
+
+	if(packet.ack == FALSE) {
+		printf("\nREQUEST TO DELETE NEGATED");
+	}
+
+	//Mandando o nome do arquivo pro servidor
+	if(strcmp(packet.buffer, F_NAME_REQ) == 0) {
+		//Pegar apenas o nome do arquivo ou o path ?
+		strcpy(packet.buffer, filename);
+		printf("Deletando arquivo: %s\n", packet.buffer); //DEBUG
+		func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
+		if (func_return < 0) {
+			printf("ERROR sendto F_NAME_REQ\n");
+		}
+
+	//Recebe confirmação do servidor
+	func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
+	if (func_return < 0) {
+		printf("ERROR recvfrom from delete reply\n");
+	}
+	if(strcmp(packet.buffer, DEL_COMPLETE) == 0){
+		printf("Arquivo deletado!");
+	}
+*/
 }
 
-void close_session() {
+void close_session() { //TODO: corrigir segmentation fault 
+/*
+	Frame packet;
+	bzero(packet.user, MAXNAME-1);
+	strcpy(packet.user, user.id);
+	bzero(packet.buffer, BUFFER_SIZE -1);
+	packet.ack = FALSE;
 
+	//Fecha a thread de sincronizacao. A thread ainda nao foi criada.
+	//pthread_cancel(sync_thread);
 
+	//Finaliza thread do servidor
+	strcpy(packet.buffer, END_REQ);
+	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
+	if (func_return < 0) {
+		printf("ERROR sendto END_REQ\n");
+	}
+
+	//Fecha o socket do cliente
+	close(user.socket_id);
+*/
 }
 
 void client_menu() {
