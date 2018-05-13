@@ -261,12 +261,53 @@ void get_file(char *filename) {
 }
 
 void delete_file(char *file) {
+/*
 
+	Frame packet;
+	bzero(packet.user, MAXNAME-1);
+	strcpy(packet.user, user.id);
+	bzero(packet.buffer, BUFFER_SIZE -1);
+	packet.ack = FALSE;
 
+	char filename[MAXNAME];
+
+	//send delete request to server
+	strcpy(packet.buffer, DEL_REQ);
+	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
+	if (func_return < 0) {
+		printf("ERROR sendto DEL_REQ\n");
+		return;
+	}
+
+	//Receive ack from server 
+	struct sockaddr_in from;
+	unsigned int length = sizeof(struct sockaddr_in);
+	func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
+	if (func_return < 0) {
+		printf("ERROR recvfrom from delete\n");
+		return;
+	}
+
+	if(packet.ack == FALSE) {
+		printf("\nREQUEST TO DELETE NEGATED");
+		return;
+	}
+
+	if(strcmp(packet.buffer, F_NAME_REQ) == 0) {
+		//Pegar apenas o nome do arquivo ou o path ?
+		strcpy(packet.buffer, filename);
+		printf("Deletando arquivo: %s\n", packet.buffer); //DEBUG
+		func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
+		if (func_return < 0) {
+			printf("ERROR sendto\n");
+			return;
+		}
+
+*/
 }
 
-void close_session() { //TODO: corrigir segmentation fault
-
+void close_session() { //TODO: corrigir segmentation fault 
+/*
 	Frame packet;
 	bzero(packet.user, MAXNAME-1);
 	strcpy(packet.user, user.id);
@@ -277,12 +318,16 @@ void close_session() { //TODO: corrigir segmentation fault
 	//pthread_cancel(sync_thread);
 
 	//Finaliza thread do servidor
-	//strcpy(packet.buffer, END_REQ);
-	//TODO: essa struct nao esta correta, colocar a struct certa. 
-	//sendto(user.socket_id, buffer, BUFFER_SIZE, 0, (struct sockaddr *) serv_conn, sizeof(struct sockaddr)); 
+	strcpy(packet.buffer, END_REQ);
+	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
+	if (func_return < 0) {
+		printf("ERROR sendto END_REQ\n");
+		return;
+	}
 
 	//Fecha o socket do cliente
 	close(user.socket_id);
+*/	
 }
 
 void client_menu() {

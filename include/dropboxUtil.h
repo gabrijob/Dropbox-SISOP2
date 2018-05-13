@@ -42,6 +42,7 @@
 #define UP_REQ "FILE UPLOAD REQUEST"
 #define F_NAME_REQ "FILE NAME REQUEST"
 #define DOWN_REQ "FILE DOWNLOAD REQUEST"
+#define DEL_REQ "FILE DELETE REQUEST"
 
 typedef struct file_info{
 	char name[MAXNAME];
