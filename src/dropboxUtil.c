@@ -65,7 +65,7 @@ int contact_server(char *host, int port, UserInfo user) {
 	} ID_MSG_CLIENT++; //printf("Got an ack: %s\n", packet.buffer); DEBUG
 
 	/* Sync the files from user to server */
-	//sync_dir(sockid, user, serv_conn); -> NOT TESTED YET
+	sync_client(sockid, user, serv_conn); //-> NOT TESTED YET
 
 	/*Cria sync_dir do usuário se não existir*/
 	if(check_dir(user.folder) == FALSE) {
@@ -79,11 +79,12 @@ int contact_server(char *host, int port, UserInfo user) {
 
 
 /* Used to sync client directories */
-void sync_dir(int sockid, UserInfo user, struct sockaddr_in serv_conn) {
-	/*int controll_thread;
+void sync_client(int sockid, UserInfo user, struct sockaddr_in serv_conn) {
+	int controll_thread;
+	pthread_t sync_thread;
 
 	/* verifies if user folder exists */
-	/*if(checkdir(user.folder) == FALSE) {
+	if(check_dir(user.folder) == FALSE) {
 		if(mkdir(user.folder, 0777) != 0) {
 			printf("Error creating user folder '%s'.\n", user.folder);
 		}
@@ -94,31 +95,31 @@ void sync_dir(int sockid, UserInfo user, struct sockaddr_in serv_conn) {
 	synchronize_remote(sockid, serv_conn, user);
 
 	/* cria thread para manter a sincronização local */
-	/*if((controll_thread = pthread_create(&sync_thread, NULL, watcher, (void *) user.folder))) {
+	if((controll_thread = pthread_create(&sync_thread, NULL, watcher, (void *) user.folder))) {
 		printf("Syncronization Thread creation failed: %d\n", controll_thread);
-	}*/
+	}
 }
 
 /* Used to sync server files */
-void sync_server(int sock_s, Client *client_s) {
-/*
+void sync_server(int sock_s, Client *client_s, ServerInfo serverInfo) {
+
 	synchronize_client(sock_s, client_s);
 
-	synchronize_server(sock_s, client_s);*/
+	synchronize_server(sock_s, client_s, serverInfo);
 }
 
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! LICENSE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 void *dir_content_thread(void *ptr) {
-   /*struct dir_content *args = (struct dir_content *) ptr;
+   struct dir_content *args = (struct dir_content *) ptr;
 
    get_dir_content(args->path, args->files, args->counter);
 
    pthread_exit(NULL);
-   return NULL;*/
+   return NULL;
 }
 
 int get_dir_file_info(char * path, FileInfo files[]) {
-	/*struct d_file dfiles[MAXFILES];
+	struct d_file dfiles[MAXFILES];
   	char path_file[MAXNAME*2 + 1];
   	int counter = 0;
 
@@ -131,7 +132,7 @@ int get_dir_file_info(char * path, FileInfo files[]) {
     		getFileExtension(dfiles[i].name, (char*) &files[i].extension);
   		files[i].size = getFileSize(dfiles[i].path);
   	}
-  	return counter;*/
+  	return counter;
 }
 
 void getFileExtension(const char *filename, char* extension) {
@@ -142,12 +143,12 @@ void getFileExtension(const char *filename, char* extension) {
   		strcpy(extension, dot+1);
   	}
 }
-/*
+
 pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
 int get_dir_content(char *path, struct d_file files[], int* counter) {
 	DIR * d = opendir(path);
   	if(d == NULL) {
-    		return FILE_NOT_FOUND;
+    		return ERROR;
   	}
 
   	struct dirent * entry;
@@ -183,7 +184,7 @@ int get_dir_content(char *path, struct d_file files[], int* counter) {
 
   	closedir(d);
 	return 0;
-}*/
+}
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! LICENSE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
 
@@ -250,7 +251,7 @@ char* getUserHome() {
  	return "";
 }
 
-int getFileSize(FILE* file) {
+int getFilesize(FILE* file) {
 	int size;
 
 	fseek(file, 0, SEEK_END);
@@ -258,6 +259,13 @@ int getFileSize(FILE* file) {
 	rewind(file);
 
 	return size;
+}
+
+int getFileSize(char *path) {
+	struct stat attr;
+	stat(path, &attr);
+	
+	return attr.st_size;
 }
 
 /* Verfies if the server directory already exists 

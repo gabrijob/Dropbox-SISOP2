@@ -275,7 +275,7 @@ void* clientThread(void* connection_struct) {
 			}
 		}
 		/* starts sync */
-		//sync_server(socket, client); -> NOT TESTED YET
+		sync_server(socket, client, serverInfo); //-> NOT TESTED YET
 
 		int connected = TRUE;
 		Frame packet;

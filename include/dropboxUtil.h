@@ -19,6 +19,7 @@
 #include <netdb.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <dirent.h>
 
 #define DYN_PORT_START 49153
 #define DYN_PORT_END 65535
@@ -51,6 +52,7 @@
 #define S_DOWNLOAD "download"
 #define S_GET "get"
 #define S_UPLOAD "upload"
+#define S_OK "ok"
 
 typedef struct file_info{
 	char name[MAXNAME];
@@ -85,6 +87,9 @@ typedef struct client{
 	char userid[MAXNAME];
 	int logged_in;
 	struct file_info files[MAXFILES];
+	pthread_mutex_t mutex_files[MAXFILES];
+	int n_files;
+	FileInfo file_info[MAXFILES];
 }Client;
 
 typedef struct client_node{
@@ -94,6 +99,17 @@ typedef struct client_node{
 }ClientNode;
 
 typedef ClientNode* ClientList;
+
+typedef struct d_file {
+  char path[MAXNAME];
+  char name[MAXNAME];
+} DFile;
+
+typedef struct dir_content {
+  char* path;
+  struct d_file* files;
+  int* counter;
+} DirContent;
 
 
 /* Ack Structure */
@@ -113,20 +129,21 @@ typedef struct frame{
 
 int contact_server(char *host, int port, UserInfo user);
 
-void sync_dir(int sockid, UserInfo user, struct sockaddr_in cli_addr);
-void sync_server(int sock_s, Client *client_s);
+void sync_client(int sockid, UserInfo user, struct sockaddr_in cli_addr);
+void sync_server(int sock_s, Client *client_s, ServerInfo serverInfo);
 
 int get_dir_file_info(char * path, FileInfo files[]);
 void getFileExtension(const char *filename, char* extension);
 void *dir_content_thread(void *ptr);
-//int get_dir_content(char *path, struct d_file files[], int* counter);
+int get_dir_content(char *path, struct d_file files[], int* counter);
 
 void getModifiedTime(char *path, char *last_modified);
 time_t getTime(char *last_modified);
 int older_file(char *last_modified, char *aux);
 int newDevice(Client* client, int socket);
 int fileExists(char* filename);
-int getFileSize(FILE* file);
+int getFilesize(FILE* file);
+int getFileSize(char *path);
 char* getUserHome();
 bool check_dir(char *pathname);
 

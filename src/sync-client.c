@@ -1,6 +1,4 @@
 /* Defining constants to the watcher thread */
-#define EVENT_SIZE (sizeof(struct inotify_event))
-#define EVENT_BUF_LEN (1024 * (EVENT_SIZE))
 
 #include "dropboxClient.h"
 
@@ -56,10 +54,12 @@ void synchronize_local(int sockid, struct sockaddr_in serv_addr, UserInfo user) 
 		    if(strcmp(packet.user, SERVER_USER)==0){
 			 packet.ack = TRUE;
 			 status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+		    }
+
 		}while(packet.ack != TRUE);
 
 		if (status < 0) {
-			DEBUG_PRINT("ERROR reading from socket in sync-client\n");
+			printf("ERROR reading from socket in sync-client\n");
 		}
 
 		strcpy(file_name, packet.buffer);
@@ -71,6 +71,8 @@ void synchronize_local(int sockid, struct sockaddr_in serv_addr, UserInfo user) 
 		    if(strcmp(packet.user, SERVER_USER)==0){
 			 packet.ack = TRUE;
 			 status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+		    }
+
 		}while(packet.ack != TRUE); 
 
 		if (status < 0) {
@@ -142,7 +144,7 @@ void synchronize_remote(int sockid, struct sockaddr_in serv_addr, UserInfo user)
 	packet.ack = FALSE;
 	for(int i = 0; i < number_files_client; i++) {
 
-		strcpy(buffer, localFiles[i].name);
+		strcpy(packet.buffer, localFiles[i].name);
 		printf("Name sent: %s\n", localFiles[i].name);	//debug
 
 		do { /* ACK */
@@ -157,7 +159,7 @@ void synchronize_remote(int sockid, struct sockaddr_in serv_addr, UserInfo user)
 			printf("ERROR writing to socket\n");
 		}
 
-		strcpy(buffer, localFiles[i].last_modified);
+		strcpy(packet.buffer, localFiles[i].last_modified);
 		printf("Last modified: %s\n", localFiles[i].last_modified);	//debug
 		packet.ack = FALSE;
 
@@ -187,9 +189,9 @@ void synchronize_remote(int sockid, struct sockaddr_in serv_addr, UserInfo user)
 		if (status < 0) {
 			printf("ERROR reading from socket\n");
 		}
-		printf("Received: %s\n", buffer);	//debug
+		printf("Received: %s\n", packet.buffer);	//debug
 
-		if(strcmp(buffer, S_GET) == 0) {
+		if(strcmp(packet.buffer, S_GET) == 0) {
 			sprintf(path, "%s/%s", user.folder, localFiles[i].name);
 			//send_file(path, FALSE);					//interface implementation
 			printf("Sending file %s\n", path);	//debug
@@ -199,61 +201,3 @@ void synchronize_remote(int sockid, struct sockaddr_in serv_addr, UserInfo user)
 	printf("End of server sync\n");		//debug
 }
 
-/* Uses inotify to watch sync time in a certain period of time */
-void *watcher(void* ptr_path) {
-
-	char* watch_path = malloc(strlen((char*) ptr_path));
-	strcpy(watch_path, (char*) ptr_path);
-
-	int fd, wd;
-	int length, i = 0;
-	char buffer[EVENT_BUF_LEN];
-
-	fd = inotify_init();
-	if(fd < 0) {
-		printf("Error inotify_init\n");		
-	}
-	
-	wd = inotify_add_watch(fd, watch_path, IN_CLOSE_WRITE | IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM | IN_MOVED_TO);
-
-	char path[MAXNAME];
-	int thread_running = TRUE;
-
-	while(thread_running) {
-		length = read(fd, buffer, EVENT_BUF_LEN); 
-
-		if (length < 0) {
-			thread_running = FALSE;
-	    	} else {
-	      		i = 0;
-	     	 	while (i < length) {
-				struct inotify_event* event = (struct inotify_event *) &buffer[i];
-
-				if (event->len) {
-		  			sprintf(path, "%s/%s", watch_path, event->name);
-
-		  			if (event->mask & (IN_CLOSE_WRITE | IN_CREATE | IN_MOVED_TO)) {
-		    				if (check_dir(path) && (event->name[0] != '.')) {
-		      					printf("\nRequest upload: %s\n", path);
-		      					//send_file(path, FALSE);		interface implementation
-		    				}
-		  			} else if (event->mask & (IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
-	    					if (event->name[0] != '.') {
-	      						printf("\nRequest delete: %s\n", path);
-	      						//delete_file(path);			interface implementation
-	    					}
-		  			}
-				}
-
-				i += EVENT_SIZE + event->len;
-	      		}
-		}
-
-		usleep(100);
-	}
-
-	inotify_rm_watch(fd, wd);
-	close(fd);
-
-	return SUCCESS;
-}

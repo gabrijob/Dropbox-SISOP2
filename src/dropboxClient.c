@@ -1,7 +1,5 @@
 #ifndef CLIENT_CODE
 #define CLIENT_CODE
-#define SUCCESS 0
-#define ERROR -1
 
 #include "dropboxClient.h"
 #include "sys/socket.h" 
@@ -13,6 +11,7 @@
 /*   Global variables   */
 UserInfo user;
 int ID_MSG_CLIENT = 0;
+
 /////////////////////////
 
 int login_server(char *host, int port) {
@@ -66,7 +65,7 @@ int login_server(char *host, int port) {
 
 
 	/* Sync the files from user to server */
-	//sync_dir(sockid, user, serv_conn); -> NOT TESTED YET
+	sync_client(sockid, user, serv_conn); //-> NOT TESTED YET
 
 	/*Cria sync_dir do usuário se não existir*/
 	if(check_dir(user.folder) == FALSE) {

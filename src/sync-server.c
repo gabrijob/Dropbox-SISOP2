@@ -1,6 +1,6 @@
 #include "dropboxServer.h"
 
-void synchronize_client(int sockid, Client* client_sync) { // executa primeiro
+void synchronize_client(int sockid, Client* client_sync) { 
 
 	char buffer[BUFFER_SIZE];	
 	int status = 0;
@@ -38,7 +38,7 @@ void synchronize_client(int sockid, Client* client_sync) { // executa primeiro
 		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen); 
 	}
 	if (status < 0) {
-	    	print("ERROR writing to socket in sync-server client\n");
+	    	printf("ERROR writing to socket in sync-server client\n");
 	}
 	packet.ack = FALSE;	
 
@@ -76,6 +76,7 @@ void synchronize_client(int sockid, Client* client_sync) { // executa primeiro
 		      status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
 		      if (strcmp(packet.buffer, S_OK) == 0) {
 			packet.ack = TRUE; flag = TRUE;
+		      }
 		      else {
 			flag = TRUE; packet.ack = TRUE;
 			strcpy(buffer, packet.buffer);
@@ -97,20 +98,24 @@ void synchronize_client(int sockid, Client* client_sync) { // executa primeiro
 	  printf("Encerrando sincronização do cliente.\n");
 }
 
-void synchronize_server(int sockid_sync, Client* client_sync) {
+void synchronize_server(int sockid_sync, Client* client_sync, ServerInfo serverInfo) {
 
 	char buffer[BUFFER_SIZE]; // 1 KB buffer
 	char path[MAXNAME * 3 + 1];
-	char last_modified[MAXNAME];
-	char file_name[MAXNAME];
-	int  status = 0;
-	int  number_files_client = 0;
 
-	char buffer[BUFFER_SIZE];	
+	char last_modified[MAXNAME];
+	char last_modified_file_2[MAXNAME];
+	char file_name[MAXNAME];
+	
+	int  number_files_client = 0;
+	
 	int status = 0;
 	bool flag = FALSE;
 	Frame packet;
 	socklen_t clilen;
+	struct sockaddr_in from, serv_addr;
+	
+	int sockid = sockid_sync;
 
 
 	printf("Iniciando sincronização do servidor.\n");	//debug
@@ -127,8 +132,6 @@ void synchronize_server(int sockid_sync, Client* client_sync) {
 	number_files_client = atoi(packet.buffer);
 	printf("Number files client: %d\n", number_files_client);
 
-	char last_modified_file_2[MAXNAME];
-
 	for(int i = 0; i < number_files_client; i++) {
 
 		/* Reads the file name from client */
@@ -136,7 +139,8 @@ void synchronize_server(int sockid_sync, Client* client_sync) {
 			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
 			strcpy(packet.user, SERVER_USER);
 	    		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
-		}while(packet.ack != TRUE)
+
+		}while(packet.ack != TRUE);
 
 		if (status < 0) {
 			printf("ERROR reading from socket\n");		//debug
@@ -151,7 +155,7 @@ void synchronize_server(int sockid_sync, Client* client_sync) {
 			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
 			strcpy(packet.user, SERVER_USER);
 	    		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
-		}while(packet.ack != TRUE)
+		}while(packet.ack != TRUE);
 
 	     
 	    	if (status < 0) {
@@ -161,7 +165,7 @@ void synchronize_server(int sockid_sync, Client* client_sync) {
 	    	printf("Last modified recebido: %s\n", last_modified);	
 
 	    	sprintf(path, "%s/%s/%s", serverInfo.folder, client_sync->userid, file_name);
-	    	getFileModifiedTime(path, last_modified_file_2);
+	    	getModifiedTime(path, last_modified_file_2);
 		packet.ack = FALSE;
 
 	    	if((check_dir(path) == FALSE) || older_file(last_modified, last_modified_file_2) == 1) {
@@ -183,7 +187,7 @@ void synchronize_server(int sockid_sync, Client* client_sync) {
 				//upload(sockid_sync, client_sync);	//interface
 	      		}
 	    	} else {
-	  		strcpy(buffer, S_OK); packet.ack = FALSE;
+	  		strcpy(packet.buffer, S_OK); packet.ack = FALSE;
 			do{
 				status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
 				status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
@@ -196,5 +200,5 @@ void synchronize_server(int sockid_sync, Client* client_sync) {
 	    }
 	}
 
-	DEBUG_PRINT("Encerrando sincronização do servidor.\n");
+	printf("Encerrando sincronização do servidor.\n");		//debug
 }
