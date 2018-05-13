@@ -1,115 +1,205 @@
 #include "dropboxServer.h"
 
-void synchronize_client(int sockid_sync, Client* client_sync) { // executa primeiro
-  char buffer[BUFFER_SIZE]; // 1 KB buffer
-  int status = 0;
+#define S_SYNC "sync"
+#define S_NSYNC "not_sync"
+#define S_DOWNLOAD "download"
+#define S_GET "get"
 
-  DEBUG_PRINT("Iniciando sincronização do cliente.\n");
+void synchronize_client(int sockid, Client* client_sync) { // executa primeiro
 
-  status = read(sockid_sync, buffer, BUFFER_SIZE); // recebe comando de sincronizar
-  if (status < 0) {
-    DEBUG_PRINT("ERROR reading from socket\n");
-  }
+	char buffer[BUFFER_SIZE];	
+	int status = 0;
+	bool flag = FALSE;
+	Frame packet;
+	socklen_t clilen;
 
-  DEBUG_PRINT("COMMAND: %s\n", buffer);
-  if(strcmp(buffer, S_SYNC) == 0) {
-    DEBUG_PRINT("sincronizar!\n");
-  }
+	struct sockaddr_in from, serv_addr;
+	clilen = sizeof(struct sockaddr_in);
 
-  sprintf(buffer, "%d", client_sync->n_files);
-  DEBUG_PRINT("Client number of files: %d.\n", client_sync->n_files);
-  status = write(sockid_sync, buffer, BUFFER_SIZE); // escreve numero de arquivos no server
-  if (status < 0) {
-    DEBUG_PRINT("ERROR writing to socket\n");
-  }
+	printf("Iniciando sincronização do cliente.\n");	//debug
 
-  for(int i = 0; i < client_sync->n_files; i++) {
-    strcpy(buffer, client_sync->file_info[i].name);
-    DEBUG_PRINT("Nome do arquivo a enviar: %s\n", client_sync->file_info[i].name);
-    status = write(sockid_sync, buffer, BUFFER_SIZE); // envia nome do arquivo para o cliente
-    if (status < 0) {
-      DEBUG_PRINT("ERROR writing to socket\n");
-    }
-    strcpy(buffer, client_sync->file_info[i].last_modified);
-    DEBUG_PRINT("Last modified: %s\n", client_sync->file_info[i].last_modified);
-    status = write(sockid_sync, buffer, BUFFER_SIZE); // envia data de ultima modificacao do arquivo
-    if (status < 0) {
-      DEBUG_PRINT("ERROR writing to socket\n");
-    }
+	/* Getting an ACK */
+	/* SYNC	*/
+	do {
+		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
+		if (strcmp(packet.buffer, S_NSYNC) == 0)
+			strcpy(packet.buffer, S_SYNC);
 
-    status = read(sockid_sync, buffer, BUFFER_SIZE);
-    if (status < 0) {
-      DEBUG_PRINT("ERROR reading from socket\n");
-    }
-    DEBUG_PRINT("Recebido: %s\n", buffer);
-    if(strcmp(buffer, S_DOWNLOAD) == 0){ // se recebeu S_DOWNLOAD do buffer, faz o download
-      download(sockid_sync, client_sync);
-    }
-  }
+		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
 
-  DEBUG_PRINT("Encerrando sincronização do cliente.\n");
+	}while (strcmp(packet.buffer, S_SYNC) != 0);
+
+	if (status < 0) {
+		printf("ERROR reading from socket in sync-server client\n");
+	}
+
+	sprintf(packet.buffer, "%d", client_sync->n_files);
+	packet.ack = FALSE; strcpy(packet.user, SERVER_USER);
+	printf("Client number of files: %d.\n", client_sync->n_files);	//debug
+
+	/* Writes the number of files in server */
+	while(packet.ack != TRUE){
+		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen); 
+	}
+	if (status < 0) {
+	    	print("ERROR writing to socket in sync-server client\n");
+	}
+	packet.ack = FALSE;	
+
+	for(int i = 0; i < client_sync->n_files; i++) {
+
+		    strcpy(packet.buffer, client_sync->file_info[i].name);
+		    printf("Nome do arquivo a enviar: %s\n", client_sync->file_info[i].name);	//debug
+		    
+		    /* Sends the file name to client */
+		    while(packet.ack != TRUE) {
+		    	status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+		    	status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
+		    }
+
+		    if (status < 0) {
+		      	printf("ERROR writing to socket in sync-server client\n");
+		    }
+		    packet.ack = FALSE;
+
+		    strcpy(packet.buffer, client_sync->file_info[i].last_modified);
+		    printf("Last modified: %s\n", client_sync->file_info[i].last_modified);	//debug
+		
+		    /* Sends the file's last modification */
+		    while(packet.ack != TRUE) {
+		    	status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+		    	status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
+		    }
+
+		    if (status < 0) {
+		      	printf("ERROR writing to socket in sync-server client\n");
+		    }
+		    packet.ack = FALSE;
+		    
+		    do{
+		      status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
+		      if (strcmp(packet.buffer, S_OK) == 0) {
+			packet.ack = TRUE; flag = TRUE;
+		      else {
+			flag = TRUE; packet.ack = TRUE;
+			strcpy(buffer, packet.buffer);
+			strcpy(packet.buffer, S_OK);
+		       }
+		      status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+
+		    }while(flag != TRUE);		
+
+		    if (status < 0) {
+		      	printf("ERROR reading from socket\n");
+		    }
+		    printf("Recebido: %s\n", buffer);
+		    if(strcmp(buffer, S_DOWNLOAD) == 0){ 
+		      	//download(sockid_sync, client_sync); //interface implementation
+		    }
+	  }
+
+	  printf("Encerrando sincronização do cliente.\n");
 }
 
 void synchronize_server(int sockid_sync, Client* client_sync) {
-  char buffer[BUFFER_SIZE]; // 1 KB buffer
-  char path[MAXNAME * 3 + 1];
-  char last_modified[MAXNAME];
-  char file_name[MAXNAME];
-  int  status = 0;
-  int  number_files_client = 0;
 
-  DEBUG_PRINT("Iniciando sincronização do servidor.\n");
+	char buffer[BUFFER_SIZE]; // 1 KB buffer
+	char path[MAXNAME * 3 + 1];
+	char last_modified[MAXNAME];
+	char file_name[MAXNAME];
+	int  status = 0;
+	int  number_files_client = 0;
 
-  status = read(sockid_sync, buffer, BUFFER_SIZE); // le o número de arquivos do cliente
-  if (status < 0) {
-    DEBUG_PRINT("ERROR reading from socket\n");
-  }
-  number_files_client = atoi(buffer);
-  DEBUG_PRINT("Number files client: %d\n", number_files_client);
+	char buffer[BUFFER_SIZE];	
+	int status = 0;
+	bool flag = FALSE;
+	Frame packet;
+	socklen_t clilen;
 
-  char last_modified_file_2[MAXNAME];
-  for(int i = 0; i < number_files_client; i++){
-    status = read(sockid_sync, buffer, BUFFER_SIZE); // le o nome do arquivo
-    if (status < 0) {
-    	DEBUG_PRINT("ERROR reading from socket\n");
-    }
-    strcpy(file_name, buffer);
-    DEBUG_PRINT("Nome recebido: %s\n", file_name);
 
-    status = read(sockid_sync, buffer, BUFFER_SIZE); // le last modified do cliente
-    if (status < 0) {
-      DEBUG_PRINT("ERROR reading from socket\n");
-    }
-    strcpy(last_modified, buffer);
-    DEBUG_PRINT("Last modified recebido: %s\n", last_modified);
+	printf("Iniciando sincronização do servidor.\n");	//debug
 
-    sprintf(path, "%s/%s/%s", serverInfo.folder, client_sync->userid, file_name);
-    getFileModifiedTime(path, last_modified_file_2);
+	/* Reads number of client's files */
+	do {
+		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
+		packet.ack = TRUE;
+		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
 
-    if(!fileExists(path) || older_file(last_modified, last_modified_file_2) == 1) {
-      strcpy(buffer, S_GET);
-      status = write(sockid_sync, buffer, BUFFER_SIZE);
-      if (status < 0) {
-        DEBUG_PRINT("ERROR writing to socket\n");
-      }
+	}while (packet.ack != TRUE);
 
-      status = read(sockid_sync, buffer, BUFFER_SIZE); // le resposta do cliente
-      if (status < 0) {
-        DEBUG_PRINT("ERROR reading from socket\n");
-      }
-      DEBUG_PRINT("Recebido: %s\n", buffer);
 
-      if(strcmp(buffer, S_UPLOAD) == 0) {
-        upload(sockid_sync, client_sync);
-      }
-  	} else {
-  		strcpy(buffer, S_OK);
-  		status = write(sockid_sync, buffer, BUFFER_SIZE); // envia ok
-      if (status < 0) {
-        DEBUG_PRINT("ERROR writing to socket\n");
-      }
-  	}
-  }
+	number_files_client = atoi(packet.buffer);
+	printf("Number files client: %d\n", number_files_client);
 
-  DEBUG_PRINT("Encerrando sincronização do servidor.\n");
+	char last_modified_file_2[MAXNAME];
+
+	for(int i = 0; i < number_files_client; i++) {
+
+		/* Reads the file name from client */
+	    	 do {
+			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
+			strcpy(packet.user, SERVER_USER);
+	    		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+		}while(packet.ack != TRUE)
+
+		if (status < 0) {
+			printf("ERROR reading from socket\n");		//debug
+		}
+
+
+	    	strcpy(file_name, packet.buffer);
+	    	printf("Nome recebido: %s\n", file_name);		//debug
+		
+		/* Reads last modified from client */
+		do {
+			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
+			strcpy(packet.user, SERVER_USER);
+	    		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+		}while(packet.ack != TRUE)
+
+	     
+	    	if (status < 0) {
+	      		printf("ERROR reading from socket\n");
+	    	}
+	    	strcpy(last_modified, packet.buffer);
+	    	printf("Last modified recebido: %s\n", last_modified);	
+
+	    	sprintf(path, "%s/%s/%s", serverInfo.folder, client_sync->userid, file_name);
+	    	getFileModifiedTime(path, last_modified_file_2);
+		packet.ack = FALSE;
+
+	    	if((check_dir(path) == FALSE) || older_file(last_modified, last_modified_file_2) == 1) {
+
+	      		strcpy(packet.buffer, S_GET);
+			do{
+				status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+				status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
+			} while (packet.ack == FALSE);
+	      		
+
+	      		if (status < 0) {
+				printf("ERROR writing to socket\n");
+	      		}
+
+	      		printf("Recebido: %s\n", packet.buffer);	//buffer
+
+	      		if(strcmp(packet.buffer, S_UPLOAD) == 0) {
+				//upload(sockid_sync, client_sync);	//interface
+	      		}
+	    	} else {
+	  		strcpy(buffer, S_OK); packet.ack = FALSE;
+			do{
+				status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+				status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
+			} while (packet.ack == FALSE);
+
+	  		
+	      		if (status < 0) {
+				printf("ERROR writing to socket\n");	//debug
+	      		}
+	    }
+	}
+
+	DEBUG_PRINT("Encerrando sincronização do servidor.\n");
 }

@@ -4,7 +4,9 @@
 
 /* Communication constants */
 #define S_SYNC "sync"
-#define S_SYNC "ok"
+#define S_NSYNC "not_sync"
+#define S_OK "ok"
+#define S_GET "get"
 
 #include "dropboxClient.h"
 
@@ -24,7 +26,7 @@ void synchronize_local(int sockid, struct sockaddr_in serv_addr, UserInfo user) 
 	length = sizeof(struct sockaddr_in);
 
 	printf("Starting local sync-client\n");		//debug
-	strcpy(packet.buffer, S_SYNC);
+	strcpy(packet.buffer, S_NSYNC);
 	packet.ack == FALSE;
 	
 	/* Getting an ACK */
@@ -35,12 +37,16 @@ void synchronize_local(int sockid, struct sockaddr_in serv_addr, UserInfo user) 
 	}
 	if (status < 0) {
 			printf("ERROR reading from socket in sync-client local\n");
+	}
 
-	do { /* ACK */
-		
+	do {
 		/* Receive the number of files at server */
 		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
-	}while(packet.ack != TRUE || (strcmp(packet.user, SERVER_USER) != 0));
+		if(strcmp(packet.user, SERVER_USER)==0){
+			packet.ack = TRUE;
+			status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+		}
+	}while(packet.ack != TRUE);
 	
 	if (status < 0) {
 		printf("ERROR reading from socket in sync-client local\n");
@@ -50,11 +56,13 @@ void synchronize_local(int sockid, struct sockaddr_in serv_addr, UserInfo user) 
 	printf("%d arquivos no servidor\n", number_files_server); //debug
 
 	for(int i = 0; i < number_files_server; i++) {
-		do { /* ACK */
-	
-			/* Receives file name from server */
-			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
-		}while(packet.ack != TRUE || (strcmp(packet.user, SERVER_USER) != 0));
+		do { 
+		    /* Receives file name from server */
+		    status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
+		    if(strcmp(packet.user, SERVER_USER)==0){
+			 packet.ack = TRUE;
+			 status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+		}while(packet.ack != TRUE);
 
 		if (status < 0) {
 			DEBUG_PRINT("ERROR reading from socket in sync-client\n");
@@ -63,11 +71,13 @@ void synchronize_local(int sockid, struct sockaddr_in serv_addr, UserInfo user) 
 		strcpy(file_name, packet.buffer);
 		printf("Nome recebido: %s\n", file_name);			//debug
 
-		do { /* ACK */
-	
-			/* Receives the date of last file modification from server */
-			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
-		}while(packet.ack != TRUE, (strcmp(packet.user, SERVER_USER) != 0)); 
+		do {
+		    /* Receives the date of last file modification from server */
+		    status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
+		    if(strcmp(packet.user, SERVER_USER)==0){
+			 packet.ack = TRUE;
+			 status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+		}while(packet.ack != TRUE); 
 
 		if (status < 0) {
 			printf("ERROR reading from socket in sync-client\n");	//debug
@@ -95,7 +105,7 @@ void synchronize_local(int sockid, struct sockaddr_in serv_addr, UserInfo user) 
 				status=sendto(sockid,&packet,sizeof(packet),0,(const struct sockaddr *)&serv_addr,sizeof(struct sockaddr_in));
 				status=recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
 
-			}while(strcmp(packet.buffer, S_OK) != 0);
+			}while(strcmp(packet.buffer, S_OK) != 0 || (packet.ack == FALSE));
 
 			if (status < 0) {
 				printf("ERROR writing to socket in sync-client\n");
@@ -135,7 +145,7 @@ void synchronize_remote(int sockid, struct sockaddr_in serv_addr, UserInfo user)
 			printf("ERROR reading from socket in sync-client remote\n");
 		}
 	}
-
+	packet.ack = FALSE;
 	for(int i = 0; i < number_files_client; i++) {
 
 		strcpy(buffer, localFiles[i].name);
@@ -145,6 +155,7 @@ void synchronize_remote(int sockid, struct sockaddr_in serv_addr, UserInfo user)
 	
 			/* Sends file's name to server */
 			status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+			packet.ack = TRUE;
 			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &to, &length);
 		}while(packet.ack != TRUE || (strcmp(packet.user, SERVER_USER) != 0));
 
@@ -154,11 +165,13 @@ void synchronize_remote(int sockid, struct sockaddr_in serv_addr, UserInfo user)
 
 		strcpy(buffer, localFiles[i].last_modified);
 		printf("Last modified: %s\n", localFiles[i].last_modified);	//debug
+		packet.ack = FALSE;
 
 		do { /* ACK */
 	
 			/* Sends last modified to server */
 			status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+			packet.ack = TRUE;
 			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &to, &length);
 		}while(packet.ack != TRUE || (strcmp(packet.user, SERVER_USER) != 0));
 
@@ -171,10 +184,14 @@ void synchronize_remote(int sockid, struct sockaddr_in serv_addr, UserInfo user)
 	
 			/* Reads from server */
 			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
-		}while(packet.ack != TRUE || (strcmp(packet.user, SERVER_USER) != 0));
+			
+			packet.ack = TRUE;
+			status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+		
+		}while(packet.ack != TRUE);
 
 		if (status < 0) {
-			DEBUG_PRINT("ERROR reading from socket\n");
+			printf("ERROR reading from socket\n");
 		}
 		printf("Received: %s\n", buffer);	//debug
 

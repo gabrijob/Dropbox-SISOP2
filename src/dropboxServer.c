@@ -306,7 +306,7 @@ void* clientThread(void* connection_struct) {
 /* Connects server to clients */
 void wait_connection(char* address, int sockid) {
 
-	int  func_return, new_client_socket;
+	int  func_return;
 	char *client_ip;
 
 	Frame packet_server, packet;
@@ -348,7 +348,7 @@ void wait_connection(char* address, int sockid) {
 		sem_wait(&semaphore);
 		
 		/* inet_ntoa converts the network address into a string */
-      	client_ip = inet_ntoa(cli_addr.sin_addr); 
+      		client_ip = inet_ntoa(cli_addr.sin_addr); 
 
 		/* Starts a new client connection */
 		Connection *connection = malloc(sizeof(*connection));
