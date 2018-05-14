@@ -14,7 +14,7 @@ void sync_server(int sock_s, Client *client_s) {
 
 	synchronize_client(sock_s, client_s);
 
-	//synchronize_server(sock_s, client_s, serverInfo);
+	synchronize_server(sock_s, client_s, serverInfo);
 }
 
 void receive_file(char* filename, int sockid, int id) {

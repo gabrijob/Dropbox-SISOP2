@@ -263,7 +263,7 @@ void sync_client() {
 
 	synchronize_local(user);
 
-	//synchronize_remote(sockid, serv_conn, user);
+	synchronize_remote(user);
 
 	/* cria thread para manter a sincronização local */
 	//if((controll_thread = pthread_create(&sync_thread, NULL, watcher, (void *) user.folder))) {

@@ -123,7 +123,7 @@ void synchronize_local(UserInfo user) {
 }
 
 
-void synchronize_remote(int sockid, struct sockaddr_in serv_addr, UserInfo user) {
+void synchronize_remote(UserInfo user) {
 
 	FileInfo localFiles[MAXFILES];
 	char path[MAXPATH];
@@ -131,8 +131,11 @@ void synchronize_remote(int sockid, struct sockaddr_in serv_addr, UserInfo user)
 	int status;
 
 	Frame packet;
-	struct sockaddr_in from, to;
+	struct sockaddr_in from;
 
+	int sockid = user.socket_id;
+
+	struct sockaddr_in* serv_addr = user.serv_conn;
 	unsigned int length = sizeof(struct sockaddr_in);
 
 	printf("Starting server sync\n");	//debug
@@ -145,8 +148,8 @@ void synchronize_remote(int sockid, struct sockaddr_in serv_addr, UserInfo user)
 	while (packet.ack == FALSE) {
 
 		/* Sends the number of files to server */
-		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
-		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &to, &length); 
+		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_addr, sizeof(struct sockaddr_in));
+		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length); 
 		if (status < 0) {
 			printf("ERROR reading from socket in sync-client remote\n");
 		}
@@ -158,11 +161,9 @@ void synchronize_remote(int sockid, struct sockaddr_in serv_addr, UserInfo user)
 		printf("Name sent: %s\n", localFiles[i].name);	//debug
 
 		do { /* ACK */
-	
 			/* Sends file's name to server */
-			status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
-			packet.ack = TRUE;
-			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &to, &length);
+			status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_addr, sizeof(struct sockaddr_in));
+			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
 		}while(packet.ack != TRUE || (strcmp(packet.user, SERVER_USER) != 0));
 
 		if (status < 0) {
@@ -174,11 +175,9 @@ void synchronize_remote(int sockid, struct sockaddr_in serv_addr, UserInfo user)
 		packet.ack = FALSE;
 
 		do { /* ACK */
-	
 			/* Sends last modified to server */
-			status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
-			packet.ack = TRUE;
-			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &to, &length);
+			status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_addr, sizeof(struct sockaddr_in));
+			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
 		}while(packet.ack != TRUE || (strcmp(packet.user, SERVER_USER) != 0));
 
 		if (status < 0) {
@@ -187,12 +186,11 @@ void synchronize_remote(int sockid, struct sockaddr_in serv_addr, UserInfo user)
 		
 		packet.ack = FALSE;
 		do { /* ACK */
-	
 			/* Reads from server */
 			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
 			
 			packet.ack = TRUE;
-			status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+			status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_addr, sizeof(struct sockaddr_in));
 		
 		}while(packet.ack != TRUE);
 
