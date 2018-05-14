@@ -62,19 +62,11 @@ int login_server(char *host, int port) {
 			return ERROR;
 		}
 	} ID_MSG_CLIENT++;
-	serv_conn.sin_port = htons(atoi(packet.buffer)); //updates defauld port with port received from the server
+	serv_conn.sin_port = htons(atoi(packet.buffer)); //updates default port with port received from the server
 
 
 	/* Sync the files from user to server */
-	sync_client(sockid, user, serv_conn); //-> NOT TESTED YET
-
-	/*Cria sync_dir do usuário se não existir*/
-	if(check_dir(user.folder) == FALSE) {
-		if(mkdir(user.folder, 0777) != SUCCESS) {
-			printf("Error creating server folder '%s'.\n", user.folder);
-			return ERROR;
-		}
-	}
+	sync_client(); 
 
 	return SUCCESS;
 }
@@ -257,7 +249,7 @@ void get_file(char *filename) {
 		printf("\nErro ao abrir o arquivo %s", filepath);
 }
 
-void sync_client(int sockid, UserInfo user, struct sockaddr_in serv_conn) {
+void sync_client() {
 	int controll_thread;
 
 	/* verifies if user folder exists */
@@ -267,14 +259,16 @@ void sync_client(int sockid, UserInfo user, struct sockaddr_in serv_conn) {
 		}
 	}
 
-	synchronize_local(sockid, serv_conn, user);
+	//MANDAR UM REQUEST AO SERVIDOR?
 
-	synchronize_remote(sockid, serv_conn, user);
+	synchronize_local(user);
+
+	//synchronize_remote(sockid, serv_conn, user);
 
 	/* cria thread para manter a sincronização local */
-	if((controll_thread = pthread_create(&sync_thread, NULL, watcher, (void *) user.folder))) {
-		printf("Syncronization Thread creation failed: %d\n", controll_thread);
-	}
+	//if((controll_thread = pthread_create(&sync_thread, NULL, watcher, (void *) user.folder))) {
+	//	printf("Syncronization Thread creation failed: %d\n", controll_thread);
+	//}
 	
 }
 
@@ -437,19 +431,11 @@ int main(int argc, char *argv[]) {
 	        -> Opens a socket UDP */
 	sockid = login_server(address, port); 
 	if (sockid == SUCCESS) {
-		
-		/*Cria sync_dir do usuário se não existir
-		sprintf(user.folder, "%s/sync_dir_%s", getUserHome(),user.id);
-		if(check_dir(user.folder) == FALSE) {
-			if(mkdir(user.folder, 0777) != SUCCESS) {
-				printf("Error creating server folder '%s'.\n", user.folder);
-				return ERROR;
-			}
-		}*/
 
-		struct sockaddr_in serv_conn;
-		sync_client(sockid, user, serv_conn);
+		/* Sync the files from user to server */
+		//sync_client(); 
 
+		/* Display client interface */
 		client_menu();
 
 	} else {

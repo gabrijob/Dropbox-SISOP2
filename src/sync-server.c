@@ -11,19 +11,19 @@ void synchronize_client(int sockid, Client* client_sync) {
 	Frame packet;
 	socklen_t clilen;
 
-	struct sockaddr_in from, serv_addr;
+	struct sockaddr_in cli_addr;
 	clilen = sizeof(struct sockaddr_in);
 
-	printf("Iniciando sincronização do cliente.\n");	//debug
+	printf("\nIniciando sincronização do cliente.\n");	//debug
 
 	/* Getting an ACK */
 	/* SYNC	*/
 	do {
-		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
+		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
 		if (strcmp(packet.buffer, S_NSYNC) == 0)
 			strcpy(packet.buffer, S_SYNC);
 
-		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &cli_addr, sizeof(struct sockaddr_in));
 
 	}while (strcmp(packet.buffer, S_SYNC) != 0);
 
@@ -37,8 +37,8 @@ void synchronize_client(int sockid, Client* client_sync) {
 
 	/* Writes the number of files in server */
 	while(packet.ack != TRUE){
-		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
-		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen); 
+		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &cli_addr, sizeof(struct sockaddr_in));
+		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen); 
 	}
 	if (status < 0) {
 	    	printf("ERROR writing to socket in sync-server client\n");
@@ -47,13 +47,13 @@ void synchronize_client(int sockid, Client* client_sync) {
 
 	for(int i = 0; i < client_sync->n_files; i++) {
 
-		    strcpy(packet.buffer, client_sync->file_info[i].name);
-		    printf("Nome do arquivo a enviar: %s\n", client_sync->file_info[i].name);	//debug
+		    strcpy(packet.buffer, client_sync->files[i].name);
+		    printf("Nome do arquivo a enviar: %s\n", client_sync->files[i].name);	//debug
 		    
 		    /* Sends the file name to client */
 		    while(packet.ack != TRUE) {
-		    	status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
-		    	status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
+		    	status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &cli_addr, sizeof(struct sockaddr_in));
+		    	status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
 		    }
 
 		    if (status < 0) {
@@ -61,13 +61,13 @@ void synchronize_client(int sockid, Client* client_sync) {
 		    }
 		    packet.ack = FALSE;
 
-		    strcpy(packet.buffer, client_sync->file_info[i].last_modified);
-		    printf("Last modified: %s\n", client_sync->file_info[i].last_modified);	//debug
+		    strcpy(packet.buffer, client_sync->files[i].last_modified);
+		    printf("Last modified: %s\n", client_sync->files[i].last_modified);	//debug
 		
 		    /* Sends the file's last modification */
 		    while(packet.ack != TRUE) {
-		    	status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
-		    	status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
+		    	status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &cli_addr, sizeof(struct sockaddr_in));
+		    	status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
 		    }
 
 		    if (status < 0) {
@@ -76,7 +76,7 @@ void synchronize_client(int sockid, Client* client_sync) {
 		    packet.ack = FALSE;
 		    
 		    do{
-		      status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &clilen);
+		      status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
 		      if (strcmp(packet.buffer, S_OK) == 0) {
 			packet.ack = TRUE; flag = TRUE;
 		      }
@@ -85,7 +85,7 @@ void synchronize_client(int sockid, Client* client_sync) {
 			strcpy(buffer, packet.buffer);
 			strcpy(packet.buffer, S_OK);
 		       }
-		      status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+		      status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &cli_addr, sizeof(struct sockaddr_in));
 
 		    }while(flag != TRUE);		
 

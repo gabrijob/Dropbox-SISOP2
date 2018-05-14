@@ -2,12 +2,20 @@
 #define SERVER_CODE
 
 #include "dropboxServer.h"
+#include "sync-server.h"
 
 /*   Global variables   */
 ClientList clients_list; 
 ServerInfo serverInfo;
 sem_t semaphore;
 
+/* Used to sync server files */
+void sync_server(int sock_s, Client *client_s) {
+
+	synchronize_client(sock_s, client_s);
+
+	//synchronize_server(sock_s, client_s, serverInfo);
+}
 
 void receive_file(char* filename, int sockid, int id) {
 	char filepath[3*MAXNAME];
@@ -274,8 +282,12 @@ void* clientThread(void* connection_struct) {
 				return NULL;
 			}
 		}
+
+		client->n_files = get_dir_file_info(client_folder, client->files);
+		printClientFiles(client);
+
 		/* starts sync */
-		sync_server(socket, client, serverInfo); //-> NOT TESTED YET
+		sync_server(socket, client);
 
 		int connected = TRUE;
 		Frame packet;

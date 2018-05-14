@@ -7,7 +7,7 @@
 #include "sync-client.h"
 #include "dropboxUtil.h"
 
-void synchronize_local(int sockid, struct sockaddr_in serv_addr, UserInfo user) {
+void synchronize_local(UserInfo user) {
 
 	char path[MAXPATH];
 	char file_name[MAXNAME];
@@ -18,6 +18,9 @@ void synchronize_local(int sockid, struct sockaddr_in serv_addr, UserInfo user) 
 	int status;
 	unsigned int length;
 
+	int sockid = user.socket_id;
+
+	struct sockaddr_in* serv_addr = user.serv_conn;
 	struct sockaddr_in from, to;
 	Frame packet;
 	length = sizeof(struct sockaddr_in);
@@ -29,7 +32,9 @@ void synchronize_local(int sockid, struct sockaddr_in serv_addr, UserInfo user) 
 	/* Getting an ACK */
 	/* SYNC	*/
 	while (strcmp(packet.buffer, S_SYNC) != 0) {
-		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+
+		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_addr, sizeof(struct sockaddr_in));
+
 		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &to, &length);
 	}
 	if (status < 0) {
@@ -41,7 +46,7 @@ void synchronize_local(int sockid, struct sockaddr_in serv_addr, UserInfo user) 
 		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
 		if(strcmp(packet.user, SERVER_USER)==0){
 			packet.ack = TRUE;
-			status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+			status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_addr, sizeof(struct sockaddr_in));
 		}
 	}while(packet.ack != TRUE);
 	
@@ -58,7 +63,7 @@ void synchronize_local(int sockid, struct sockaddr_in serv_addr, UserInfo user) 
 		    status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
 		    if(strcmp(packet.user, SERVER_USER)==0){
 			 packet.ack = TRUE;
-			 status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+			 status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_addr, sizeof(struct sockaddr_in));
 		    }
 
 		}while(packet.ack != TRUE);
@@ -75,7 +80,7 @@ void synchronize_local(int sockid, struct sockaddr_in serv_addr, UserInfo user) 
 		    status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
 		    if(strcmp(packet.user, SERVER_USER)==0){
 			 packet.ack = TRUE;
-			 status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_addr, sizeof(struct sockaddr_in));
+			 status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_addr, sizeof(struct sockaddr_in));
 		    }
 
 		}while(packet.ack != TRUE); 
@@ -103,7 +108,7 @@ void synchronize_local(int sockid, struct sockaddr_in serv_addr, UserInfo user) 
 		} else {
 			strcpy(packet.buffer, S_OK);
 			do { /* ACK -> confirming OK! */
-				status=sendto(sockid,&packet,sizeof(packet),0,(const struct sockaddr *)&serv_addr,sizeof(struct sockaddr_in));
+				status=sendto(sockid,&packet,sizeof(packet),0,(const struct sockaddr *) serv_addr,sizeof(struct sockaddr_in));
 				status=recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
 
 			}while(strcmp(packet.buffer, S_OK) != 0 || (packet.ack == FALSE));

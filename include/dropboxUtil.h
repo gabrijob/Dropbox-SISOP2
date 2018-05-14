@@ -90,7 +90,6 @@ typedef struct client{
 	struct file_info files[MAXFILES];
 	pthread_mutex_t mutex_files[MAXFILES];
 	int n_files;
-	FileInfo file_info[MAXFILES];
 }Client;
 
 typedef struct client_node{
@@ -128,10 +127,6 @@ typedef struct frame{
 }Frame;
 /* End of Ack */
 
-int contact_server(char *host, int port, UserInfo user);
-
-void sync_client(int sockid, UserInfo user, struct sockaddr_in cli_addr);
-void sync_server(int sock_s, Client *client_s, ServerInfo serverInfo);
 
 int get_dir_file_info(char * path, FileInfo files[]);
 void getFileExtension(const char *filename, char* extension);
@@ -153,5 +148,6 @@ ClientList addClient(char* userID, int socket, ClientList user_list);
 
 //DEBUG SECTION
 void printUserList(ClientList user_list);
+void printClientFiles(Client* client);
 
 #endif

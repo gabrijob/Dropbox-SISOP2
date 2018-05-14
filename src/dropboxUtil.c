@@ -7,115 +7,6 @@
 #include "watcher.h"
 
 
-int contact_server(char *host, int port, UserInfo user) {
-	int ID_MSG_CLIENT = 0;
-	//char buffer[BUFFER_SIZE];
-	int func_return, sockid;
-	unsigned int length;
-
-	struct sockaddr_in serv_conn, from;
-	
-	Frame packet;
-	
-	sockid = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (sockid == ERROR) {
-		printf("Error opening socket ");
-		return ERROR;
-	}
-	else
-		printf("First client socket %i\n", sockid);
-
-	bzero((char *) &serv_conn, sizeof(serv_conn));
-
-	serv_conn.sin_family = AF_INET;
-	serv_conn.sin_port = htons(port);
-	serv_conn.sin_addr.s_addr = inet_addr(host);
-
-	/* Filling packet structure */
-	bzero(packet.user, MAXNAME-1);
-	strcpy(packet.user, user.id);
-	bzero(packet.buffer, BUFFER_SIZE -1);
-	packet.message_id = ID_MSG_CLIENT;
-	packet.ack = FALSE;
-
-	while((strcmp(user.id, packet.user) != 0) || (packet.ack != TRUE) || (packet.message_id != ID_MSG_CLIENT)) {	
-
-		printf("Entered\n");
-		func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_conn, sizeof(struct sockaddr_in));
-		if (func_return < 0) {
-			printf("ERROR sendto ");
-			return ERROR;
-		}/*
-		if (packet.ack == TRUE)
-			printf("Ack 1 on client TRUE\n");
-		else
-			printf("Ack 1 on client FALSE\n");
-		DEBUG*/
-		
-		length = sizeof(struct sockaddr_in);
-		func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
-		if (func_return < 0) {
-			printf("ERROR recvfrom ");
-			return ERROR;
-		}/*
-		if (packet.ack == TRUE)
-			printf("Ack 2 on client TRUE\n");
-		else
-			printf("Ack 2 on client FALSE\n");
-		DEBUG*/
-
-	} ID_MSG_CLIENT++; //printf("Got an ack: %s\n", packet.buffer); DEBUG
-
-	
-
-	/* Sync the files from user to server */
-	/* Foi para o dropboxClient.c
-	sync_client(sockid, user, serv_conn); //-> NOT TESTED YET
-
-	//Cria sync_dir do usuário se não existir
-	if(check_dir(user.folder) == FALSE) {
-		if(mkdir(user.folder, 0777) != SUCCESS) {
-			printf("Error creating server folder '%s'.\n", user.folder);
-			return ERROR;
-		}
-	}
-	*/
-	return SUCCESS;
-}
-
-
-/* Foi para o dropboxClient.c
-	//Used to sync client directories
-void sync_client(int sockid, UserInfo user, struct sockaddr_in serv_conn) {
-	int controll_thread;
-	pthread_t sync_thread;
-
-	/* verifies if user folder exists 
-	if(check_dir(user.folder) == FALSE) {
-		if(mkdir(user.folder, 0777) != 0) {
-			printf("Error creating user folder '%s'.\n", user.folder);
-		}
-	}
-
-	synchronize_local(sockid, serv_conn, user);
-
-	synchronize_remote(sockid, serv_conn, user);
-
-	/* cria thread para manter a sincronização local 
-	if((controll_thread = pthread_create(&sync_thread, NULL, watcher, (void *) user.folder))) {
-		printf("Syncronization Thread creation failed: %d\n", controll_thread);
-	}
-}
-*/
-
-/* Used to sync server files */
-void sync_server(int sock_s, Client *client_s, ServerInfo serverInfo) {
-
-	synchronize_client(sock_s, client_s);
-
-	synchronize_server(sock_s, client_s, serverInfo);
-}
-
 /* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! LICENSE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 void *dir_content_thread(void *ptr) {
    struct dir_content *args = (struct dir_content *) ptr;
@@ -318,6 +209,7 @@ ClientList addClient(char* userID, int socket, ClientList user_list) {
 	new_client->devices[0] = socket;
 	new_client->devices[1] = -1;
 	new_client->logged_in = 1;
+	new_client->n_files = 0;
 
 	ClientNode* new_node = (ClientNode*) malloc(sizeof(ClientNode));
 	new_node->client = new_client;
@@ -378,6 +270,18 @@ void printUserList(ClientList user_list){
         current_node = current_node->next;
     }
 }
+
+void printClientFiles(Client* client){
+	printf("\nFiles in the client folder:");
+
+	for(int i = 0; i < client->n_files; i++){
+		printf("\n\n\tName: %s", client->files[i].name);
+		printf("\n\tExtension: %s", client->files[i].extension);
+		printf("\n\tLast Modified: %s", client->files[i].last_modified);
+		printf("\n\tSize: %d", client->files[i].size);
+	}
+}
+
 /* ----------------------------------------------------------------- */
 
 

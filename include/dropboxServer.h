@@ -32,7 +32,8 @@ typedef struct client_node{
 typedef ClientNode* ClientList;*/
 
 
-void sync_server();
+
+void sync_server(int sock_s, Client *client_s);
 
 void receive_file(char *filename, int sockid, int id);
 
