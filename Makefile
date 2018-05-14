@@ -4,6 +4,7 @@ CFLAGS = -Wall
 OBJ = dropboxClient.o dropboxServer.o dropboxUtil.o sync-client.o sync-server.o watcher.o 
 
 all: client server
+	 @echo "All files compiled!"
 
 client: dropboxClient.o dropboxUtil.o sync-client.o watcher.o sync-server.o
 	$(CC) $(CFLAGS) dropboxClient.o dropboxUtil.o sync-client.o watcher.o sync-server.o -o $@ -pthread -Iinclude

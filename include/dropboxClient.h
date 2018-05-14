@@ -2,6 +2,8 @@
 #define CLIENT_HEADER
 
 #include "dropboxUtil.h"
+#include "sync-client.h"
+#include "watcher.h"
 
 
 int login_server(char *host, int port);

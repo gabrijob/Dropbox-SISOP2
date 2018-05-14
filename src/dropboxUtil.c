@@ -66,26 +66,31 @@ int contact_server(char *host, int port, UserInfo user) {
 
 	} ID_MSG_CLIENT++; //printf("Got an ack: %s\n", packet.buffer); DEBUG
 
+	
+
 	/* Sync the files from user to server */
+	/* Foi para o dropboxClient.c
 	sync_client(sockid, user, serv_conn); //-> NOT TESTED YET
 
-	/*Cria sync_dir do usuário se não existir*/
+	//Cria sync_dir do usuário se não existir
 	if(check_dir(user.folder) == FALSE) {
 		if(mkdir(user.folder, 0777) != SUCCESS) {
 			printf("Error creating server folder '%s'.\n", user.folder);
 			return ERROR;
 		}
 	}
+	*/
 	return SUCCESS;
 }
 
 
-/* Used to sync client directories */
+/* Foi para o dropboxClient.c
+	//Used to sync client directories
 void sync_client(int sockid, UserInfo user, struct sockaddr_in serv_conn) {
 	int controll_thread;
 	pthread_t sync_thread;
 
-	/* verifies if user folder exists */
+	/* verifies if user folder exists 
 	if(check_dir(user.folder) == FALSE) {
 		if(mkdir(user.folder, 0777) != 0) {
 			printf("Error creating user folder '%s'.\n", user.folder);
@@ -96,11 +101,12 @@ void sync_client(int sockid, UserInfo user, struct sockaddr_in serv_conn) {
 
 	synchronize_remote(sockid, serv_conn, user);
 
-	/* cria thread para manter a sincronização local */
+	/* cria thread para manter a sincronização local 
 	if((controll_thread = pthread_create(&sync_thread, NULL, watcher, (void *) user.folder))) {
 		printf("Syncronization Thread creation failed: %d\n", controll_thread);
 	}
 }
+*/
 
 /* Used to sync server files */
 void sync_server(int sock_s, Client *client_s, ServerInfo serverInfo) {
