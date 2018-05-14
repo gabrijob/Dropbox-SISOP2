@@ -113,11 +113,11 @@ void send_file_server(char *filename, int sockid, int id, struct sockaddr_in *cl
 
 			printf("\n Sending file %s - Total: %d / Read: %d", filename, file_size, bytes_sent); //DEBUG
 		}
-		printf("\n Finished sending file %s", filename);
+		printf("\n Finished sending file %s\n", filename);
 		fclose(file);
 	}
 	else
-		printf("Erro ao abrir o arquivo %s", filepath);
+		printf("Erro ao abrir o arquivo %s\n", filepath);
 }
 
 

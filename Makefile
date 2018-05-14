@@ -6,11 +6,11 @@ OBJ = dropboxClient.o dropboxServer.o dropboxUtil.o sync-client.o sync-server.o 
 all: client server
 	 @echo "All files compiled!"
 
-client: dropboxClient.o dropboxUtil.o sync-client.o watcher.o sync-server.o
-	$(CC) $(CFLAGS) dropboxClient.o dropboxUtil.o sync-client.o watcher.o sync-server.o -o $@ -pthread -Iinclude
+client: dropboxClient.o dropboxUtil.o sync-client.o watcher.o 
+	$(CC) $(CFLAGS) dropboxClient.o dropboxUtil.o sync-client.o watcher.o  -o $@ -pthread -Iinclude
 
-server: dropboxServer.o dropboxUtil.o sync-server.o watcher.o sync-client.o
-	$(CC) $(CFLAGS) dropboxServer.o dropboxUtil.o sync-server.o watcher.o sync-client.o -o $@ -pthread -Iinclude
+server: dropboxServer.o dropboxUtil.o sync-server.o watcher.o 
+	$(CC) $(CFLAGS) dropboxServer.o dropboxUtil.o sync-server.o watcher.o  -o $@ -pthread -Iinclude
 
 %.o: src/%.c include/*.h 
 	$(CC) $(CFLAGS) -c -o $@ $< -pthread -Iinclude

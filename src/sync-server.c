@@ -43,9 +43,11 @@ void synchronize_client(int sockid, Client* client_sync) {
 	if (status < 0) {
 	    	printf("ERROR writing to socket in sync-server client\n");
 	}
-	packet.ack = FALSE;	
+		
 
 	for(int i = 0; i < client_sync->n_files; i++) {
+			strcpy(packet.user, SERVER_USER);
+			packet.ack = FALSE;
 
 		    strcpy(packet.buffer, client_sync->files[i].name);
 		    printf("Nome do arquivo a enviar: %s\n", client_sync->files[i].name);	//debug
@@ -54,7 +56,7 @@ void synchronize_client(int sockid, Client* client_sync) {
 		    while(packet.ack != TRUE) {
 		    	status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &cli_addr, sizeof(struct sockaddr_in));
 		    	status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
-		    }
+			}
 
 		    if (status < 0) {
 		      	printf("ERROR writing to socket in sync-server client\n");
@@ -68,7 +70,7 @@ void synchronize_client(int sockid, Client* client_sync) {
 		    while(packet.ack != TRUE) {
 		    	status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &cli_addr, sizeof(struct sockaddr_in));
 		    	status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
-		    }
+			}
 
 		    if (status < 0) {
 		      	printf("ERROR writing to socket in sync-server client\n");
@@ -93,8 +95,8 @@ void synchronize_client(int sockid, Client* client_sync) {
 		      	printf("ERROR reading from socket\n");
 		    }
 		    printf("Recebido: %s\n", buffer);
-		    if(strcmp(buffer, S_DOWNLOAD) == 0){ 
-		      	//download(sockid_sync, client_sync); //interface implementation
+		    if(strcmp(buffer, DOWN_REQ) == 0){ 
+		      	send_file_server(client_sync->files[i].name, sockid, atoi(client_sync->userid), &cli_addr);
 		    }
 	  }
 

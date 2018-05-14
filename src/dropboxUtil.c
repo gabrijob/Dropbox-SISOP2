@@ -93,7 +93,7 @@ void getModifiedTime(char *path, char *last_modified) {
 	struct stat attr;
 	stat(path, &attr);
 
-	strftime(last_modified, 20, "%Y.%m.%d %H:%M:%S", localtime(&(attr.st_mtime)));
+	strftime(last_modified, 20, "%d.%m.%Y %H:%M:%S", localtime(&(attr.st_mtime)));
 }
 
 /* Gets current time using lib time.h */
@@ -102,7 +102,7 @@ time_t getTime(char *last_modified){
 
 	int year = 0, month = 0, day = 0, hour = 0, min = 0, sec = 0;
 
-	if (sscanf(last_modified, "%4d.%2d.%2d %2d:%2d:%2d", &year, &month, &day, &hour, &min, &sec) == 6) {
+	if (sscanf(last_modified, "%2d.%2d.%4d %2d:%2d:%2d", &day, &month, &year, &hour, &min, &sec) == 6) {
 		struct tm breakdown = { 0 };
 		breakdown.tm_year = year - 1900; /* years since 1900 */
 		breakdown.tm_mon = month - 1;

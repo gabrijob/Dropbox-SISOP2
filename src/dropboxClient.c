@@ -242,7 +242,7 @@ void get_file(char *filename) {
 			}
 			printf("\n Receiving file %s - Total: %d / Written: %d", filename, file_size, bytes_received); //DEBUG
 		}
-		printf("\n Finished receiving file %s", filename); //DEBUG
+		printf("\n Finished receiving file %s\n", filename); //DEBUG
 		fclose(file);
 	}
 	else

@@ -5,7 +5,7 @@
 /* Defining constants to the watcher thread */
 
 #include "sync-client.h"
-#include "dropboxUtil.h"
+
 
 void synchronize_local(UserInfo user) {
 
@@ -97,13 +97,13 @@ void synchronize_local(UserInfo user) {
 		/* Function to acquire modification time of sync file */
 		getModifiedTime(path, last_modified_file_2);
 
-		if(check_dir(path) == FALSE) {
-			//get_file(file_name, NULL);					//client interface implementation
+		if(check_dir(path) == FALSE) {;					
 			printf("File %s does not exist... downloading\n", file_name);	//debug
+			get_file(file_name);
 
 		} else if (older_file(last_modified, last_modified_file_2) == SUCCESS) {
-			//get_file(file_name, NULL);
 			printf("File %s older... downloading\n", file_name);	//debug
+			get_file(file_name);
 
 		} else {
 			strcpy(packet.buffer, S_OK);
