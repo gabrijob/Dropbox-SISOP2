@@ -405,6 +405,10 @@ void* clientThread(void* connection_struct) {
 		//printf("user-%s desconectou no dispositivo %d, socket-%d!\n", client_id, removeDevice(client, device), socket);
 		//clients_list = check_login_status(client, clients_list);
 	}
+	else {
+		printf("Too many devices for same client!!\n");
+		return ERROR;
+	}
 	
 	return 0;
 }
