@@ -1,7 +1,7 @@
 #ifndef SYNC_SERVER_CODE
 #define SYNC_SERVER_CODE
 
-#include "sync-client.h"
+#include "sync-server.h"
 
 void synchronize_client(int sockid, Client* client_sync) { 
 
@@ -174,25 +174,27 @@ void synchronize_server(int sockid_sync, Client* client_sync, ServerInfo serverI
 	    printf("Last modified recebido: %s\n", last_modified);	
 
     	sprintf(path, "%s/%s/%s", serverInfo.folder, client_sync->userid, file_name);
+		printf("\n%s\n", path);
     	getModifiedTime(path, last_modified_file_2);
 		packet.ack = FALSE;
 
     	if((check_dir(path) == FALSE) || older_file(last_modified, last_modified_file_2) == 1) {
 
       		strcpy(packet.buffer, S_GET);
-			do{
-				status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &cli_addr, sizeof(struct sockaddr_in));
-				status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
-			} while (packet.ack == FALSE);
-	      		
+			/* Message client to start an upload */
+			status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &cli_addr, sizeof(struct sockaddr_in));      		
       		if (status < 0) {
 				printf("ERROR writing to socket\n");
 			}
 
+			/* Receives request to upload from client */
+			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
 	      	printf("Recebido: %s\n", packet.buffer);	//buffer
 
 	      	if(strcmp(packet.buffer, UP_REQ) == 0) {
-				//upload(sockid_sync, client_sync);	//interface
+				packet.ack = TRUE;
+				status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &cli_addr, sizeof(struct sockaddr_in));
+				receive_file(file_name, sockid, atoi(client_sync->userid));	
 	      	}
 	    } else {
 	  		strcpy(packet.buffer, S_OK); packet.ack = FALSE;
@@ -200,8 +202,7 @@ void synchronize_server(int sockid_sync, Client* client_sync, ServerInfo serverI
 				status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &cli_addr, sizeof(struct sockaddr_in));
 				status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
 			} while (packet.ack == FALSE);
-
-	  		
+ 		
 	      	if (status < 0) {
 				printf("ERROR writing to socket\n");	//debug
 	      	}

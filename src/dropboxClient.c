@@ -73,7 +73,7 @@ int login_server(char *host, int port) {
 
 
 
-void send_file_client(char *filename) {
+void send_file_client(char *filename, UserInfo user) {
 	char filepath[3*MAXNAME];
 	int file_size;
 	int bytes_sent;
@@ -161,7 +161,7 @@ void send_file_client(char *filename) {
 		printf("\nErro ao abrir o arquivo %s\n", filepath);
 }
 
-void get_file(char *filename) {
+void get_file(char *filename, UserInfo user) {
 	int file_size;
 	int bytes_received;
 	int func_return;
@@ -376,11 +376,11 @@ void client_menu() {
 
 			/* UPLOAD */
 			if(strcmp(command, "upload") == 0) {
-				send_file_client(attribute);
+				send_file_client(attribute, user);
 			}
 			/* DOWNLOAD */
 			else if(strcmp(command, "download") == 0) {
-				get_file(attribute);
+				get_file(attribute, user);
 			}
 
 		}

@@ -27,7 +27,7 @@ void synchronize_local(UserInfo user) {
 
 	printf("Starting local sync-client\n");		//debug
 	strcpy(packet.buffer, S_NSYNC);
-	packet.ack == FALSE;
+	
 	
 	/* Getting an ACK */
 	/* SYNC	*/
@@ -99,11 +99,11 @@ void synchronize_local(UserInfo user) {
 
 		if(check_dir(path) == FALSE) {;					
 			printf("File %s does not exist... downloading\n", file_name);	//debug
-			get_file(file_name);
+			get_file(file_name, user);
 
 		} else if (older_file(last_modified, last_modified_file_2) == SUCCESS) {
 			printf("File %s older... downloading\n", file_name);	//debug
-			get_file(file_name);
+			get_file(file_name, user);
 
 		} else {
 			strcpy(packet.buffer, S_OK);
@@ -154,8 +154,9 @@ void synchronize_remote(UserInfo user) {
 			printf("ERROR reading from socket in sync-client remote\n");
 		}
 	}
-	packet.ack = FALSE;
+
 	for(int i = 0; i < number_files_client; i++) {
+		packet.ack = FALSE;
 
 		strcpy(packet.buffer, localFiles[i].name);
 		printf("Name sent: %s\n", localFiles[i].name);	//debug
@@ -184,25 +185,22 @@ void synchronize_remote(UserInfo user) {
 			printf("ERROR writing to socket on sync client\n");	//debug
 		}
 		
-		packet.ack = FALSE;
-		do { /* ACK */
-			/* Reads from server */
-			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
-			
-			packet.ack = TRUE;
-			status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_addr, sizeof(struct sockaddr_in));
-		
-		}while(packet.ack != TRUE);
-
+		/* Receives the answer if server will download file or not */
+		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
 		if (status < 0) {
 			printf("ERROR reading from socket\n");
 		}
+
 		printf("Received: %s\n", packet.buffer);	//debug
 
 		if(strcmp(packet.buffer, S_GET) == 0) {
 			sprintf(path, "%s/%s", user.folder, localFiles[i].name);
-			//send_file(path, FALSE);					//interface implementation
-			printf("Sending file %s\n", path);	//debug
+			//passar path como parametro?
+			send_file_client(localFiles[i].name, user);
+		}
+		else { /*ACK*/
+			packet.ack = TRUE;
+			status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_addr, sizeof(struct sockaddr_in));
 		}
 	}
 

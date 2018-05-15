@@ -91,9 +91,10 @@ int get_dir_content(char *path, struct d_file files[], int* counter) {
 /* Gets modification time of file using lib time.h */
 void getModifiedTime(char *path, char *last_modified) {
 	struct stat attr;
-	stat(path, &attr);
-
-	strftime(last_modified, 20, "%d.%m.%Y %H:%M:%S", localtime(&(attr.st_mtime)));
+	if(fileExists(path)){
+		stat(path, &attr);
+		strftime(last_modified, 20, "%d.%m.%Y %H:%M:%S", localtime(&(attr.st_mtime)));
+	}
 }
 
 /* Gets current time using lib time.h */

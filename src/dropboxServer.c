@@ -64,11 +64,11 @@ void receive_file(char* filename, int sockid, int id) {
 			}
 			printf("\n Receiving file %s - Total: %d / Written: %d", filename, file_size, bytes_received); //DEBUG
 		} 
-		printf("\n Finished receiving file %s", filename); //DEBUG
+		printf("\n Finished receiving file %s\n", filename); //DEBUG
 		fclose(file);
 	}
 	else
-		printf("Erro ao abrir o arquivo %s", filepath);
+		printf("Erro ao abrir o arquivo %s\n", filepath);
 }
 
 
