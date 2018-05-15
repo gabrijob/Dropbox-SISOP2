@@ -10,7 +10,7 @@ int login_server(char *host, int port);
 
 void sync_client();
 
-void send_file_client(char *filename, UserInfo *user);
+void send_file_client(char *path, UserInfo *user);
 
 void get_file(char *filename, UserInfo *user);
 

@@ -78,12 +78,15 @@ int login_server(char *host, int port) {
 
 
 
-void send_file_client(char *filename, UserInfo *user) {
-	char filepath[3*MAXNAME];
+void send_file_client(char *path, UserInfo *user) {
+	char* filename;
+	char filepath[MAXPATH];
 	int file_size;
 	int bytes_sent;
 	int func_return;
-	sprintf(filepath, "%s/%s", user->folder, filename);
+	
+	strcpy(filepath, path);
+	filename = basename(path);
 
 	int sockid = user->socket_id;
 	struct sockaddr_in* serv_conn = user->serv_conn;

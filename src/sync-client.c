@@ -195,8 +195,7 @@ void synchronize_remote(UserInfo *user) {
 
 		if(strcmp(packet.buffer, S_GET) == 0) {
 			sprintf(path, "%s/%s", user->folder, localFiles[i].name);
-			//passar path como parametro?
-			send_file_client(localFiles[i].name, user);
+			send_file_client(path, user);
 		}
 		else { /*ACK*/
 			packet.ack = TRUE;
