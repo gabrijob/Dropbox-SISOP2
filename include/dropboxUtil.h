@@ -140,6 +140,7 @@ void getModifiedTime(char *path, char *last_modified);
 time_t getTime(char *last_modified);
 int older_file(char *last_modified, char *aux);
 int newDevice(Client* client, int socket);
+int removeDevice(Client* client, int device);
 int fileExists(char* filename);
 int getFilesize(FILE* file);
 int getFileSize(char *path);
@@ -148,6 +149,8 @@ bool check_dir(char *pathname);
 
 Client* searchClient(char* userId, ClientList user_list);
 ClientList addClient(char* userID, int socket, ClientList user_list);
+ClientList check_login_status(Client* client, ClientList client_list);
+ClientList removeClient(Client* client, ClientList client_list);
 
 //DEBUG SECTION
 void printUserList(ClientList user_list);

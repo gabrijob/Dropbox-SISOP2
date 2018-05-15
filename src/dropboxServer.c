@@ -324,7 +324,8 @@ void* clientThread(void* connection_struct) {
 
 	int socket;
 	char client_id[MAXNAME];
-	char *client_ip;
+	//char *client_ip;
+	int device = 0;
 	
 	Connection *connection = (Connection*) malloc(sizeof(Connection));
 	Client *client = (Client*) malloc(sizeof(Client));
@@ -333,7 +334,7 @@ void* clientThread(void* connection_struct) {
 	
 	connection = (Connection*) connection_struct;
 	socket = connection->socket_id;
-	client_ip = connection->ip;
+	//client_ip = connection->ip;
 	strncpy(client_id, connection->client_id, MAXNAME);
 	client_id[MAXNAME - 1] = '\0';
 
@@ -354,10 +355,10 @@ void* clientThread(void* connection_struct) {
 
 	} else {
 		/* Adds a new device for the client */
-		newDevice(client, socket);
+		device = newDevice(client, socket);
 	}
 
-	if(client->devices[0] > -1 || client->devices[1] > -1) {
+	if(device != -1) {
 		char client_folder[5*MAXNAME];
 
 		sprintf(client_folder, "%s/%s", serverInfo.folder, client_id);
@@ -394,6 +395,9 @@ void* clientThread(void* connection_struct) {
 				select_commands(&packet, &cli_addr, socket, client);
 			}
 		}
+
+		//printf("user-%s desconectou no dispositivo %d, socket-%d!\n", client_id, removeDevice(client, device), socket);
+		//clients_list = check_login_status(client, clients_list);
 	}
 	
 	return 0;

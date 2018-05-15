@@ -223,6 +223,42 @@ ClientList addClient(char* userID, int socket, ClientList user_list) {
 	return user_list;
 }
 
+ClientList removeClient(Client* client, ClientList client_list){
+	printf("Removendo cliente %s\n", client->userid); //debug
+	ClientNode* current = client_list;
+	ClientNode* last_visited = client_list;
+
+	if(strcmp(client->userid, client_list->client->userid) == 0) { // testa se é o primeiro elemento
+		client_list = client_list->next;
+		free(current->client);
+		free(current);
+		printf("Único cliente da fila removido.\n"); //debug
+		return NULL;
+	}
+
+	while(current != NULL) {
+		if(strcmp(client->userid, current->client->userid) == 0) {
+			last_visited->next = current->next;
+			free(current->client);
+			free(current);
+			printf("Cliente removido da lista.\n"); //debug
+		}
+		last_visited = current; // anterior
+		current = current->next; // atual
+	}
+	return client_list;
+}
+
+
+ClientList check_login_status(Client* client, ClientList client_list) {
+	if(client->devices[0] == -1 && client->devices[1] == -1) {
+		client->logged_in = 0;
+		printf("Cliente '%s' logged out!\n", client->userid);
+
+		return removeClient(client, client_list);
+	}	else return client_list;
+}
+
 int newDevice(Client* client, int socket) {
 	if(client->devices[0] == -1) {
 		client->devices[0] = socket;
@@ -231,6 +267,16 @@ int newDevice(Client* client, int socket) {
 	if(client->devices[1] == -1) {
 		client->devices[1] = socket;
 		return 0;
+	}
+
+	return -1;
+}
+
+int removeDevice(Client* client, int device) {
+	if(client) {
+		client->devices[device] = -1;
+		printf("'%s' removeu dispositivo '%d'.\n", client->userid, device);  // debug
+		return device;
 	}
 
 	return -1;
