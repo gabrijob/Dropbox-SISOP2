@@ -13,7 +13,7 @@ UserInfo user;
 int ID_MSG_CLIENT = 0;
 pthread_t sync_thread;
 
-/////////////////////////
+//Start of client interface
 
 int login_server(char *host, int port) {
 	int func_return, sockid;
@@ -372,7 +372,6 @@ void client_menu() {
 				command = strtok(command_line, " ");
 				attribute = strtok(NULL, " ");
 			}
-			//printf("\necho: %s %s", command, attribute); //DEBUG
 
 			/* UPLOAD */
 			if(strcmp(command, "upload") == 0) {
@@ -431,9 +430,6 @@ int main(int argc, char *argv[]) {
 	        -> Opens a socket UDP */
 	sockid = login_server(address, port); 
 	if (sockid == SUCCESS) {
-
-		/* Sync the files from user to server */
-		//sync_client(); 
 
 		/* Display client interface */
 		client_menu();

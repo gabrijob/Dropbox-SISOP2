@@ -4,8 +4,6 @@
 #include "dropboxUtil.h"
 #include "dropboxClient.h"
 
-
 void *watcher(void* ptr_path);
-
 
 #endif

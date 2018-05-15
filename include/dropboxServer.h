@@ -1,9 +1,7 @@
 #ifndef SERVER_HEADER
 #define SERVER_HEADER
 
-
 #include "dropboxUtil.h"
-
 
 void sync_server(int sock_s, Client *client_s);
 

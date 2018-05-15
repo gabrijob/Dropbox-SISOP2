@@ -6,8 +6,6 @@
 #include "sync-client.h"
 #include "watcher.h"
 
-
-/* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! LICENSE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 void *dir_content_thread(void *ptr) {
    struct dir_content *args = (struct dir_content *) ptr;
 
@@ -84,11 +82,7 @@ int get_dir_content(char *path, struct d_file files[], int* counter) {
   	closedir(d);
 	return 0;
 }
-/* !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! LICENSE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! */
 
-
-
-/* Gets modification time of file using lib time.h */
 void getModifiedTime(char *path, char *last_modified) {
 	struct stat attr;
 	if(fileExists(path)){
@@ -97,7 +91,6 @@ void getModifiedTime(char *path, char *last_modified) {
 	}
 }
 
-/* Gets current time using lib time.h */
 time_t getTime(char *last_modified){
 	time_t result = 0;
 
@@ -105,7 +98,7 @@ time_t getTime(char *last_modified){
 
 	if (sscanf(last_modified, "%2d.%2d.%4d %2d:%2d:%2d", &day, &month, &year, &hour, &min, &sec) == 6) {
 		struct tm breakdown = { 0 };
-		breakdown.tm_year = year - 1900; /* years since 1900 */
+		breakdown.tm_year = year - 1900;
 		breakdown.tm_mon = month - 1;
 		breakdown.tm_mday = day;
 		breakdown.tm_hour = hour;
@@ -124,8 +117,6 @@ time_t getTime(char *last_modified){
 	}
 }
 
-/* Gets the oldest fle
-	-> returns SUCCESS if aux file is older than the modified date */
 int older_file(char *last_modified, char *aux) {
 	time_t time_f1 = getTime(last_modified);
 	time_t time_f2 = getTime(aux);
@@ -134,11 +125,6 @@ int older_file(char *last_modified, char *aux) {
 		return SUCCESS;
 	return 0;
 }
-
-/*
-	getpwuid() --> Gets users initial working directory
-	geteuid()  --> Gets the effective user ID of the current process
-*/
 
 char* getUserHome() {
  	struct passwd *pw = getpwuid(geteuid());	 
@@ -168,9 +154,6 @@ int getFileSize(char *path) {
 	return attr.st_size;
 }
 
-/* Verfies if the server directory already exists 
-   	->Uses the 'sys/stat.h' lib */
-
 bool check_dir(char *pathname) {
 	struct stat st = {0};
 	
@@ -179,10 +162,6 @@ bool check_dir(char *pathname) {
 	
 	return TRUE;
 }
-
-
-/* Seraches for client with the userId passed as an arument in the GLOBAL clients list
-	-> returns the client's node if found or NULL if not */
 
 Client* searchClient(char* userId, ClientList user_list) {
 
@@ -196,11 +175,6 @@ Client* searchClient(char* userId, ClientList user_list) {
 	}
 	return NULL;
 }
-
-
-
-/* Adds a new client with the userId passed as an arument in the GLOBAL clients list
-	-> returns the updated clients list */
 
 ClientList addClient(char* userID, int socket, ClientList user_list) {
 
@@ -234,11 +208,7 @@ ClientList addClient(char* userID, int socket, ClientList user_list) {
 	return user_list;
 }
 
-/**Tries to add a new device to a client, 
- * returns 1 if successfull
- * returns -1 if client reached the max amount of devices
- */
-int newDevice(Client* client, int socket) {
+newDevice(Client* client, int socket) {
 	if(client->devices[0] == -1) {
 		client->devices[0] = socket;
 		return 0;
@@ -284,7 +254,5 @@ void printClientFiles(Client* client){
 }
 
 /* ----------------------------------------------------------------- */
-
-
 
 #endif
