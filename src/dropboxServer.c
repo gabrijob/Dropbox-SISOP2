@@ -122,9 +122,15 @@ void send_file_server(char *filename, int sockid, int id, struct sockaddr_in *cl
 
 void list_server(int sockid, Client* client, struct sockaddr_in *cli_addr) {
 	int func_return = 0;
+	char client_folder[3*MAXNAME];
 
 	Frame packet;
 	packet.ack = TRUE;
+
+	sprintf(client_folder, "%s/%s", serverInfo.folder, client->userid);
+
+	/* Update files list */
+	client->n_files = get_dir_file_info(client_folder, client->files);
 
 	sprintf(packet.buffer, "%d", client->n_files);
 	printf("\nGot request to list user-%s files", client->userid);
@@ -135,7 +141,7 @@ void list_server(int sockid, Client* client, struct sockaddr_in *cli_addr) {
 	if (func_return < 0) 
 		printf("ERROR on sendto\n");
 
-	/* Send files' metadata */
+	/* Send files metadata */
 	for(int i = 0; i < client->n_files; i++) {
 		sprintf(packet.buffer, "%s \t- Modification Time: %s", client->files[i].name, client->files[i].last_modified);
 		func_return = sendto(sockid, &packet, sizeof(packet), 0,(struct sockaddr *) cli_addr, sizeof(struct sockaddr));
