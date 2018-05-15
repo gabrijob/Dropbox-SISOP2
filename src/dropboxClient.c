@@ -249,6 +249,53 @@ void get_file(char *filename, UserInfo *user) {
 		printf("\nErro ao abrir o arquivo %s", filepath);
 }
 
+void list_server() {
+	Frame packet;
+	bzero(packet.user, MAXNAME-1);
+	strcpy(packet.user, user.id);
+	bzero(packet.buffer, BUFFER_SIZE -1);
+	packet.ack = FALSE;
+	
+	int func_return;
+	int sockid = user.socket_id;
+
+	struct sockaddr_in *serv_conn = user.serv_conn;
+
+	int number_files = 0;
+
+	/* Request List Server */
+	strcpy(packet.buffer, LIST_S_REQ);
+	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
+	if (func_return < 0) {
+		printf("ERROR sendto\n");
+		return;
+	}
+
+	/* Receive ack and number of files from server*/
+	struct sockaddr_in from;
+	unsigned int length = sizeof(struct sockaddr_in);
+	func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
+	if (func_return < 0) {
+		printf("ERROR recvfrom\n");
+		return;
+	}
+
+	if(packet.ack == FALSE) {
+		printf("\nREQUEST TO SEE SERVER LIST NEGATED");
+		return;
+	}
+
+	number_files = atoi(packet.buffer);
+	printf("\nNumber of files: %d\n", number_files);
+	for(int i = 0; i < number_files; i++) {
+		func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
+		if (func_return < 0) {
+			printf("ERROR recvfrom\n");
+		}
+		printf("%s\n", packet.buffer);
+	}
+}
+
 void sync_client() {
 
 	/* verifies if user folder exists */
@@ -360,7 +407,7 @@ void client_menu() {
 
 	int exited = FALSE;
 	while(!exited){
-		printf("\nDigite um comando:");
+		printf("\nEsperando comandos...\n");
 
 		if(fgets(command_line, sizeof(command_line)-1, stdin) != NULL) {
 			command_line[strcspn(command_line, "\r\n")] = 0;
@@ -379,6 +426,10 @@ void client_menu() {
 			/* DOWNLOAD */
 			else if(strcmp(command, "download") == 0) {
 				get_file(attribute, &user);
+			}
+			/* LIST_SERVER */
+			else if(strcmp(command, "list_server") == 0) {
+				list_server();
 			}
 			/* Delete */
 			else if(strcmp(command, "delete") == 0) {

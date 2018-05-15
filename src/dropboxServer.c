@@ -120,6 +120,30 @@ void send_file_server(char *filename, int sockid, int id, struct sockaddr_in *cl
 		printf("Erro ao abrir o arquivo %s\n", filepath);
 }
 
+void list_server(int sockid, Client* client, struct sockaddr_in *cli_addr) {
+	int func_return = 0;
+
+	Frame packet;
+	packet.ack = TRUE;
+
+	sprintf(packet.buffer, "%d", client->n_files);
+	printf("\nGot request to list user-%s files", client->userid);
+	printf("\nNumber files: %d\n", atoi(packet.buffer)); // debug
+
+	/* Send number of files to client */
+	func_return = sendto(sockid, &packet, sizeof(packet), 0,(struct sockaddr *) cli_addr, sizeof(struct sockaddr));
+	if (func_return < 0) 
+		printf("ERROR on sendto\n");
+
+	/* Send files' metadata */
+	for(int i = 0; i < client->n_files; i++) {
+		sprintf(packet.buffer, "%s \t- Modification Time: %s", client->files[i].name, client->files[i].last_modified);
+		func_return = sendto(sockid, &packet, sizeof(packet), 0,(struct sockaddr *) cli_addr, sizeof(struct sockaddr));
+		if (func_return < 0) 
+			printf("ERROR on sendto\n");
+	}
+}
+
 int remove_file(char* filename, Client *client) {
 	char filepath[4*MAXNAME];
 	int ret;
@@ -142,7 +166,6 @@ int remove_file(char* filename, Client *client) {
 	}
 
 	client->n_files = get_dir_file_info(client_folder, client->files);
-
 
 	return ret;
 }	
@@ -253,6 +276,10 @@ void select_commands(Frame* packet, struct sockaddr_in *cli_addr, int socket, Cl
 		char filename[MAXNAME];
 		sprintf(filename, "%s", packet->buffer);
 		send_file_server(filename, socket, atoi(packet->user), cli_addr);		
+	}
+	/* LIST_SERVER */
+	else if(strcmp(packet->buffer, LIST_S_REQ) == 0) {
+		list_server(socket, client, cli_addr);
 	}
 	/* DELETE */
 	else if(strcmp(packet->buffer, DEL_REQ) == 0) {

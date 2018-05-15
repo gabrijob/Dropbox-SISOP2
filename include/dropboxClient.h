@@ -12,6 +12,8 @@ void sync_client();
 
 void send_file_client(char *filename, UserInfo *user);
 
+void list_server();
+
 void get_file(char *filename, UserInfo *user);
 
 void delete_file(char *filename, UserInfo *user);
