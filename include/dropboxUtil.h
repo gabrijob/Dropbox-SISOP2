@@ -48,6 +48,7 @@
 #define LIST_S_REQ "LIST SERVER FILES REQUEST"
 #define DEL_REQ "FILE DELETE REQUEST"
 #define DEL_COMPLETE "FILE DELETED"
+#define SYNC_REQ "SYNCHRONIZATION REQUEST"
 
 #define S_SYNC "sync"
 #define S_NSYNC "not_sync"
@@ -72,6 +73,7 @@ typedef struct user_info {
 	char folder[MAXNAME * 2];
 	int socket_id;
 	struct sockaddr_in *serv_conn;
+	pthread_mutex_t lock_server_comm;
 }UserInfo;
 
 typedef struct connection_info{
@@ -131,6 +133,7 @@ int get_dir_file_info(char * path, FileInfo files[]);
 void getFileExtension(const char *filename, char* extension);
 void *dir_content_thread(void *ptr);
 int get_dir_content(char *path, struct d_file files[], int* counter);
+int print_dir_file_info(char * path);
 
 void getModifiedTime(char *path, char *last_modified);
 time_t getTime(char *last_modified);

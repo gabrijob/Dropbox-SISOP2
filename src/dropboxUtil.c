@@ -32,6 +32,20 @@ int get_dir_file_info(char * path, FileInfo files[]) {
   	return counter;
 }
 
+int print_dir_file_info(char * path) {
+  FileInfo files[MAXFILES];
+  int counter;
+
+  counter = get_dir_file_info(path, files);
+
+  printf("\nNumber of files: %d\n", counter);
+  for (int i = 0; i < counter; i++) {
+    printf("%s \t- Modification Time: %s \n", files[i].name, files[i].last_modified);
+  }
+
+  return 0;
+}
+
 void getFileExtension(const char *filename, char* extension) {
 	const char *dot = strrchr(filename, '.');
   	if(!dot || !strcmp(dot, filename)) {

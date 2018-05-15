@@ -12,9 +12,13 @@ void sync_client();
 
 void send_file_client(char *filename, UserInfo *user);
 
+void get_file(char *filename, UserInfo *user);
+
 void list_server();
 
-void get_file(char *filename, UserInfo *user);
+void list_client();
+
+void get_sync_dir();
 
 void delete_file(char *filename, UserInfo *user);
 

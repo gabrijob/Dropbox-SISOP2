@@ -64,6 +64,11 @@ int login_server(char *host, int port) {
 	} ID_MSG_CLIENT++;
 	serv_conn.sin_port = htons(atoi(packet.buffer)); //updates default port with port received from the server
 
+	/* Initializes mutex to control comunication with server*/
+	if(pthread_mutex_init(&user.lock_server_comm, NULL) != 0){
+		printf("ERROR mutex init failed ");
+		return ERROR;
+	}
 
 	/* Sync the files from user to server */
 	sync_client(); 
@@ -263,6 +268,8 @@ void list_server() {
 
 	int number_files = 0;
 
+	printf("\n-SERVER DIRECTORY CONTENT-\n");
+
 	/* Request List Server */
 	strcpy(packet.buffer, LIST_S_REQ);
 	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
@@ -296,8 +303,16 @@ void list_server() {
 	}
 }
 
-void sync_client() {
+void list_client() {
+	if(!fileExists(user.folder)) {
+    	printf("Error, User folder '%s' doesn't exist.\n", user.folder);
+  	} else {
+		printf("\n-CLIENT DIRECTORY CONTENT-\n");
+    	print_dir_file_info(user.folder);
+  	}
+}
 
+void sync_client() {
 	/* verifies if user folder exists */
 	if(check_dir(user.folder) == FALSE) {
 		if(mkdir(user.folder, 0777) != 0) {
@@ -305,11 +320,43 @@ void sync_client() {
 		}
 	}
 
-	//MANDAR UM REQUEST AO SERVIDOR?
-
 	synchronize_local(&user);
 
 	synchronize_remote(&user);
+}
+
+void get_sync_dir() {
+	int sockid = user.socket_id;
+	struct sockaddr_in *serv_conn = user.serv_conn;
+
+	Frame packet;
+	bzero(packet.user, MAXNAME-1);
+	strcpy(packet.user, user.id);
+	bzero(packet.buffer, BUFFER_SIZE -1);
+	packet.ack = FALSE;
+	int func_return;
+	
+	/* Send synchronization request to server */
+	strcpy(packet.buffer, SYNC_REQ);
+	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
+	if (func_return < 0) {
+		printf("ERROR sendto DEL_REQ\n");
+	}
+
+	//Receive ack from server 
+	struct sockaddr_in from;
+	unsigned int length = sizeof(struct sockaddr_in);
+	func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
+	if (func_return < 0) {
+		printf("ERROR recvfrom from delete\n");
+	}
+
+	if(packet.ack == FALSE) {
+		printf("\nREQUEST TO SYNCHRONIZE NEGATED");
+		return;
+	}
+
+	sync_client();
 }
 
 void delete_file(char *filename, UserInfo *user) {
@@ -378,8 +425,11 @@ void close_session() { //TODO: corrigir segmentation fault
 
 	struct sockaddr_in *serv_conn = user.serv_conn;
 
-	//Fecha a thread de sincronizacao. A thread ainda nao foi criada.
+	//Fecha a thread de sincronizacao
 	pthread_cancel(sync_thread);
+	
+	//Destroi mutex
+	pthread_mutex_destroy(&user.lock_server_comm);
 
 	//Finaliza thread do servidor
 	strcpy(packet.buffer, END_REQ);
@@ -421,24 +471,45 @@ void client_menu() {
 
 			/* UPLOAD */
 			if(strcmp(command, "upload") == 0) {
+				pthread_mutex_lock(&user.lock_server_comm);
 				send_file_client(attribute, &user);
+				pthread_mutex_unlock(&user.lock_server_comm);
 			}
 			/* DOWNLOAD */
 			else if(strcmp(command, "download") == 0) {
+				pthread_mutex_lock(&user.lock_server_comm);
 				get_file(attribute, &user);
+				pthread_mutex_unlock(&user.lock_server_comm);
 			}
 			/* LIST_SERVER */
 			else if(strcmp(command, "list_server") == 0) {
+				pthread_mutex_lock(&user.lock_server_comm);
 				list_server();
+				pthread_mutex_unlock(&user.lock_server_comm);
 			}
-			/* Delete */
+			/* LIST_CLIENT */
+			else if(strcmp(command, "list_client") == 0) {
+				list_client();
+			}
+			/* GET_SYNC_DIR*/
+			else if(strcmp(command, "get_sync_dir") == 0) {
+				pthread_mutex_lock(&user.lock_server_comm);
+				get_sync_dir();
+				pthread_mutex_unlock(&user.lock_server_comm);
+			} 
+			/* DELETE */
 			else if(strcmp(command, "delete") == 0) {
+				pthread_mutex_lock(&user.lock_server_comm);
 				delete_file(attribute, &user);
+				pthread_mutex_unlock(&user.lock_server_comm);
 			}
+			/* INVALID COMMAND*/
+			/*else
+				printf("\nComando invalido");*/	
 
 		}
 		else
-			printf("\nComando invalido");
+			printf("\nFalha ao ler comando");
 	}
 
 	close_session();

@@ -43,13 +43,19 @@ void *watcher(void* user) {
 
 		  			if (event->mask & (IN_CLOSE_WRITE | IN_CREATE | IN_MOVED_TO)) {
 		    				if (check_dir(path) && (event->name[0] != '.')) {
-		      					printf("\nRequest upload: %s to user_%s\n", event->name, user_info->id);
+		      					pthread_mutex_lock(&(user_info->lock_server_comm));
+								printf("\nRequest upload: %s to user_%s\n", event->name, user_info->id);
+
 		      					send_file_client(event->name, user_info);
+								pthread_mutex_unlock(&(user_info->lock_server_comm));
 		    				}
 		  			} else if (event->mask & (IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
 	    					if (event->name[0] != '.') {
-	      						printf("\nRequest delete: %s to user_%s\n", event->name, user_info->id);
+	      						pthread_mutex_lock(&(user_info->lock_server_comm));
+								printf("\nRequest delete: %s to user_%s\n", event->name, user_info->id);
+
 	      						delete_file(event->name, user_info);
+								pthread_mutex_unlock(&(user_info->lock_server_comm));
 	    					}
 		  			}
 				}

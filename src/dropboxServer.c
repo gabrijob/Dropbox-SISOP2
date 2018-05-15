@@ -281,6 +281,15 @@ void select_commands(Frame* packet, struct sockaddr_in *cli_addr, int socket, Cl
 	else if(strcmp(packet->buffer, LIST_S_REQ) == 0) {
 		list_server(socket, client, cli_addr);
 	}
+	/* GET_SYNC_DIR */
+	else if(strcmp(packet->buffer, SYNC_REQ) == 0) {
+		/* Send ack */
+		func_return = sendto(socket, packet, sizeof(*packet), 0,(struct sockaddr *) cli_addr, sizeof(struct sockaddr));
+		if (func_return < 0) 
+			printf("ERROR on sendto\n");
+
+		sync_server(socket, client);
+	}
 	/* DELETE */
 	else if(strcmp(packet->buffer, DEL_REQ) == 0) {
 		strcpy(packet->buffer, F_NAME_REQ);
@@ -411,26 +420,15 @@ void wait_connection(char* address, int sockid) {
 	packet_server.ack = FALSE; //controls the acks received by the server
 	while (TRUE) {
 		
-		//while(packet_server.ack != TRUE){
-			
-			func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
-			if (func_return < 0) 
-				printf("ERROR on recvfrom\n");
-			printf("Received a datagram from: %s\n", packet.user);
-			//printf("ACK 1 SERVER = %d\n", packet_server.ack); DEBUG
+		func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
+		if (func_return < 0) 
+			printf("ERROR on recvfrom\n");
+		printf("Received a datagram from: %s\n", packet.user);
 		
-			bzero(packet.buffer, BUFFER_SIZE -1);		
-			strcpy(packet.buffer, "Got yout message\n");
-			strcpy(packet_server.user, SERVER_USER);
-			packet.ack = TRUE; packet_server.ack = TRUE; 
-			/*
-			func_return = sendto(sockid, &packet, sizeof(packet), 0,(struct sockaddr *) &cli_addr, sizeof(struct sockaddr));
-			if (func_return < 0) 
-				printf("ERROR on sendto\n");
-			*/
-			//printf("ACK 2 SERVER = %d\n", packet_server.ack); DEBUG
-
-		//}packet_server.ack = FALSE;
+		bzero(packet.buffer, BUFFER_SIZE -1);		
+		strcpy(packet.buffer, "Got yout message\n");
+		strcpy(packet_server.user, SERVER_USER);
+		packet.ack = TRUE; packet_server.ack = TRUE; 
 
 		/* Updates semaphore when a new connection starts */		
 		sem_wait(&semaphore);
