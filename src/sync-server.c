@@ -123,7 +123,7 @@ void synchronize_server(int sockid_sync, Client* client_sync, ServerInfo serverI
 	int sockid = sockid_sync;
 
 
-	printf("Iniciando sincronização do servidor.\n");	//debug
+	printf("\nIniciando sincronização do servidor.\n");	//debug
 
 	/* Reads number of client's files */
 	do {
@@ -174,7 +174,6 @@ void synchronize_server(int sockid_sync, Client* client_sync, ServerInfo serverI
 	    printf("Last modified recebido: %s\n", last_modified);	
 
     	sprintf(path, "%s/%s/%s", serverInfo.folder, client_sync->userid, file_name);
-		printf("\n%s\n", path);
     	getModifiedTime(path, last_modified_file_2);
 		packet.ack = FALSE;
 
@@ -209,7 +208,7 @@ void synchronize_server(int sockid_sync, Client* client_sync, ServerInfo serverI
 	    }
 	}
 
-	printf("Encerrando sincronização do servidor.\n");		//debug
+	printf("\nEncerrando sincronização do servidor.\n");		//debug
 }
 
 #endif

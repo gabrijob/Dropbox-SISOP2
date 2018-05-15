@@ -138,7 +138,7 @@ void synchronize_remote(UserInfo user) {
 	struct sockaddr_in* serv_addr = user.serv_conn;
 	unsigned int length = sizeof(struct sockaddr_in);
 
-	printf("Starting server sync\n");	//debug
+	printf("\nStarting server sync\n");	//debug
 
 	number_files_client = get_dir_file_info(user.folder, localFiles);
 	sprintf(packet.buffer, "%d", number_files_client);
@@ -204,7 +204,7 @@ void synchronize_remote(UserInfo user) {
 		}
 	}
 
-	printf("End of server sync\n");		//debug
+	printf("\nEnd of server sync\n");		//debug
 }
 
 #endif

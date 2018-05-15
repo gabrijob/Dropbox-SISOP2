@@ -250,7 +250,7 @@ void get_file(char *filename, UserInfo user) {
 }
 
 void sync_client() {
-	int controll_thread;
+	int control_thread;
 
 	/* verifies if user folder exists */
 	if(check_dir(user.folder) == FALSE) {
@@ -266,9 +266,9 @@ void sync_client() {
 	synchronize_remote(user);
 
 	/* cria thread para manter a sincronização local */
-	//if((controll_thread = pthread_create(&sync_thread, NULL, watcher, (void *) user.folder))) {
-	//	printf("Syncronization Thread creation failed: %d\n", controll_thread);
-	//}
+	if((control_thread = pthread_create(&sync_thread, NULL, watcher, (void *) user.folder))) {
+		printf("Syncronization Thread creation failed: %d\n", control_thread);
+	}
 	
 }
 
