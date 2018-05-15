@@ -4,7 +4,7 @@
 #include "dropboxUtil.h"
 #include "dropboxClient.h"
 
-void synchronize_local(UserInfo user);
-void synchronize_remote(UserInfo user);
+void synchronize_local(UserInfo *user);
+void synchronize_remote(UserInfo *user);
 
 #endif

@@ -73,19 +73,19 @@ int login_server(char *host, int port) {
 
 
 
-void send_file_client(char *filename, UserInfo user) {
+void send_file_client(char *filename, UserInfo *user) {
 	char filepath[3*MAXNAME];
 	int file_size;
 	int bytes_sent;
 	int func_return;
-	sprintf(filepath, "%s/%s", user.folder, filename);
+	sprintf(filepath, "%s/%s", user->folder, filename);
 
-	int sockid = user.socket_id;
-	struct sockaddr_in* serv_conn = user.serv_conn;
+	int sockid = user->socket_id;
+	struct sockaddr_in* serv_conn = user->serv_conn;
 
 	Frame packet;
 	bzero(packet.user, MAXNAME-1);
-	strcpy(packet.user, user.id);
+	strcpy(packet.user, user->id);
 	bzero(packet.buffer, BUFFER_SIZE -1);
 	packet.ack = FALSE;
 
@@ -161,17 +161,17 @@ void send_file_client(char *filename, UserInfo user) {
 		printf("\nErro ao abrir o arquivo %s\n", filepath);
 }
 
-void get_file(char *filename, UserInfo user) {
+void get_file(char *filename, UserInfo *user) {
 	int file_size;
 	int bytes_received;
 	int func_return;
 
-	int sockid = user.socket_id;
-	struct sockaddr_in* serv_conn = user.serv_conn;
+	int sockid = user->socket_id;
+	struct sockaddr_in* serv_conn = user->serv_conn;
 
 	Frame packet;
 	bzero(packet.user, MAXNAME-1);
-	strcpy(packet.user, user.id);
+	strcpy(packet.user, user->id);
 	bzero(packet.buffer, BUFFER_SIZE -1);
 	packet.ack = FALSE;
 
@@ -210,7 +210,7 @@ void get_file(char *filename, UserInfo user) {
 	}
 
 	char filepath[3*MAXNAME];
-	sprintf(filepath, "%s/%s", user.folder, filename);
+	sprintf(filepath, "%s/%s", user->folder, filename);
 	printf("Receiving file at %s", filepath); //DEBUG
 	FILE* file;
 	file = fopen(filepath, "wb");
@@ -250,7 +250,6 @@ void get_file(char *filename, UserInfo user) {
 }
 
 void sync_client() {
-	int control_thread;
 
 	/* verifies if user folder exists */
 	if(check_dir(user.folder) == FALSE) {
@@ -261,33 +260,26 @@ void sync_client() {
 
 	//MANDAR UM REQUEST AO SERVIDOR?
 
-	synchronize_local(user);
+	synchronize_local(&user);
 
-	synchronize_remote(user);
-
-	/* cria thread para manter a sincronização local */
-	if((control_thread = pthread_create(&sync_thread, NULL, watcher, (void *) user.folder))) {
-		printf("Syncronization Thread creation failed: %d\n", control_thread);
-	}
-	
+	synchronize_remote(&user);
 }
 
-void delete_file(char *file) {
+void delete_file(char *filename, UserInfo *user) {
+	int sockid = user->socket_id;
+	struct sockaddr_in *serv_conn = user->serv_conn;
 
 	Frame packet;
 	bzero(packet.user, MAXNAME-1);
-	strcpy(packet.user, user.id);
+	strcpy(packet.user, user->id);
 	bzero(packet.buffer, BUFFER_SIZE -1);
 	packet.ack = FALSE;
-	int sockid, func_return;
+	int func_return;
 
-	char filename[MAXNAME];
-
-	struct sockaddr_in serv_conn;
 
 	//send delete request to server
 	strcpy(packet.buffer, DEL_REQ);
-	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_conn, sizeof(struct sockaddr_in));
+	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
 	if (func_return < 0) {
 		printf("ERROR sendto DEL_REQ\n");
 	}
@@ -309,7 +301,7 @@ void delete_file(char *file) {
 		//Pegar apenas o nome do arquivo ou o path ?
 		strcpy(packet.buffer, filename);
 		printf("Deletando arquivo: %s\n", packet.buffer); //DEBUG
-		func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_conn, sizeof(struct sockaddr_in));
+		func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
 		if (func_return < 0) {
 			printf("ERROR sendto F_NAME_REQ\n");
 		}
@@ -335,16 +327,16 @@ void close_session() { //TODO: corrigir segmentation fault
 	packet.ack = FALSE;
 	
 	int func_return;
-	int sockid;
+	int sockid = user.socket_id;
 
-	struct sockaddr_in serv_conn;
+	struct sockaddr_in *serv_conn = user.serv_conn;
 
 	//Fecha a thread de sincronizacao. A thread ainda nao foi criada.
 	pthread_cancel(sync_thread);
 
 	//Finaliza thread do servidor
 	strcpy(packet.buffer, END_REQ);
-	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_conn, sizeof(struct sockaddr_in));
+	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
 	if (func_return < 0) {
 		printf("ERROR sendto END_REQ\n");
 	}
@@ -358,7 +350,14 @@ void client_menu() {
 	char command_line[MAXPATH];
 	char *command;
 	char *attribute;
+	int control_thread;
 	
+
+	/* cria thread para manter a sincronização local */
+	if((control_thread = pthread_create(&sync_thread, NULL, watcher, (void *) &user))) {
+		printf("Syncronization Thread creation failed: %d\n", control_thread);
+	}
+
 	int exited = FALSE;
 	while(!exited){
 		printf("\nDigite um comando:");
@@ -375,11 +374,15 @@ void client_menu() {
 
 			/* UPLOAD */
 			if(strcmp(command, "upload") == 0) {
-				send_file_client(attribute, user);
+				send_file_client(attribute, &user);
 			}
 			/* DOWNLOAD */
 			else if(strcmp(command, "download") == 0) {
-				get_file(attribute, user);
+				get_file(attribute, &user);
+			}
+			/* Delete */
+			else if(strcmp(command, "delete") == 0) {
+				delete_file(attribute, &user);
 			}
 
 		}
@@ -430,7 +433,7 @@ int main(int argc, char *argv[]) {
 	        -> Opens a socket UDP */
 	sockid = login_server(address, port); 
 	if (sockid == SUCCESS) {
-
+	
 		/* Display client interface */
 		client_menu();
 

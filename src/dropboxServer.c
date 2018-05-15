@@ -120,6 +120,33 @@ void send_file_server(char *filename, int sockid, int id, struct sockaddr_in *cl
 		printf("Erro ao abrir o arquivo %s\n", filepath);
 }
 
+int remove_file(char* filename, Client *client) {
+	char filepath[4*MAXNAME];
+	int ret;
+
+	char client_folder[3*MAXNAME];
+	sprintf(client_folder, "%s/%d", serverInfo.folder, atoi(client->userid));
+
+	sprintf(filepath, "%s/%s", client_folder, filename);
+	printf("\nRemoving file at: %s", filepath);
+	
+	if(fileExists(filepath)) { 
+		if(remove(filepath) != 0) {
+			printf("\nErro ao deletar o arquivo %s", filename);
+			ret = ERROR;
+		}
+		else {
+			printf("\nArquivo %s removido", filename);
+			ret = SUCCESS;
+		}
+	}
+
+	client->n_files = get_dir_file_info(client_folder, client->files);
+
+
+	return ret;
+}	
+
 
 int open_server(char *address, int port) {
 
@@ -190,7 +217,7 @@ int new_server_port(char *address, Connection* connection) {
 	return SUCCESS;	
 }
 
-void select_commands(Frame* packet, struct sockaddr_in *cli_addr, int socket) {
+void select_commands(Frame* packet, struct sockaddr_in *cli_addr, int socket, Client* client) {
 	int func_return;
 	socklen_t clilen = sizeof(struct sockaddr_in);
 	packet->ack = TRUE;
@@ -227,6 +254,28 @@ void select_commands(Frame* packet, struct sockaddr_in *cli_addr, int socket) {
 		sprintf(filename, "%s", packet->buffer);
 		send_file_server(filename, socket, atoi(packet->user), cli_addr);		
 	}
+	/* DELETE */
+	else if(strcmp(packet->buffer, DEL_REQ) == 0) {
+		strcpy(packet->buffer, F_NAME_REQ);
+		/* Request filename */
+		func_return = sendto(socket, packet, sizeof(*packet), 0,(struct sockaddr *) cli_addr, sizeof(struct sockaddr));
+		if (func_return < 0) 
+			printf("ERROR on sendto\n");
+
+		func_return = recvfrom(socket, packet, sizeof(*packet), 0, (struct sockaddr *) cli_addr, &clilen);
+		if (func_return < 0) 
+			printf("ERROR on recvfrom\n");
+
+		char filename[MAXNAME];
+		sprintf(filename, "%s",packet->buffer);
+		if(remove_file(filename, client) == 0)
+			strcpy(packet->buffer, DEL_COMPLETE);
+		/* Send confirmation */
+		func_return = sendto(socket, packet, sizeof(*packet), 0,(struct sockaddr *) cli_addr, sizeof(struct sockaddr));
+		if (func_return < 0) 
+			printf("ERROR on sendto\n");		
+	}
+
 
 }
 
@@ -284,7 +333,7 @@ void* clientThread(void* connection_struct) {
 		}
 
 		client->n_files = get_dir_file_info(client_folder, client->files);
-		printClientFiles(client);
+		printClientFiles(client); // DEBUG
 
 		/* starts sync */
 		sync_server(socket, client);
@@ -306,7 +355,7 @@ void* clientThread(void* connection_struct) {
 			}
 			else {
 				//printf("\nComando recebido: %s", packet.buffer);
-				select_commands(&packet, &cli_addr, socket);
+				select_commands(&packet, &cli_addr, socket, client);
 			}
 		}
 	}

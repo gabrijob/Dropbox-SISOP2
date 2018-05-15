@@ -7,7 +7,7 @@
 #include "sync-client.h"
 
 
-void synchronize_local(UserInfo user) {
+void synchronize_local(UserInfo *user) {
 
 	char path[MAXPATH];
 	char file_name[MAXNAME];
@@ -18,9 +18,9 @@ void synchronize_local(UserInfo user) {
 	int status;
 	unsigned int length;
 
-	int sockid = user.socket_id;
+	int sockid = user->socket_id;
 
-	struct sockaddr_in* serv_addr = user.serv_conn;
+	struct sockaddr_in* serv_addr = user->serv_conn;
 	struct sockaddr_in from, to;
 	Frame packet;
 	length = sizeof(struct sockaddr_in);
@@ -92,7 +92,7 @@ void synchronize_local(UserInfo user) {
 		strcpy(last_modified, packet.buffer);
 		printf("Last modified: %s\n", last_modified);			//debug
 
-		sprintf(path, "%s/%s", user.folder, file_name);
+		sprintf(path, "%s/%s", user->folder, file_name);
 
 		/* Function to acquire modification time of sync file */
 		getModifiedTime(path, last_modified_file_2);
@@ -123,7 +123,7 @@ void synchronize_local(UserInfo user) {
 }
 
 
-void synchronize_remote(UserInfo user) {
+void synchronize_remote(UserInfo *user) {
 
 	FileInfo localFiles[MAXFILES];
 	char path[MAXPATH];
@@ -133,14 +133,14 @@ void synchronize_remote(UserInfo user) {
 	Frame packet;
 	struct sockaddr_in from;
 
-	int sockid = user.socket_id;
+	int sockid = user->socket_id;
 
-	struct sockaddr_in* serv_addr = user.serv_conn;
+	struct sockaddr_in* serv_addr = user->serv_conn;
 	unsigned int length = sizeof(struct sockaddr_in);
 
 	printf("\nStarting server sync\n");	//debug
 
-	number_files_client = get_dir_file_info(user.folder, localFiles);
+	number_files_client = get_dir_file_info(user->folder, localFiles);
 	sprintf(packet.buffer, "%d", number_files_client);
 	packet.ack = FALSE;
 
@@ -194,7 +194,7 @@ void synchronize_remote(UserInfo user) {
 		printf("Received: %s\n", packet.buffer);	//debug
 
 		if(strcmp(packet.buffer, S_GET) == 0) {
-			sprintf(path, "%s/%s", user.folder, localFiles[i].name);
+			sprintf(path, "%s/%s", user->folder, localFiles[i].name);
 			//passar path como parametro?
 			send_file_client(localFiles[i].name, user);
 		}

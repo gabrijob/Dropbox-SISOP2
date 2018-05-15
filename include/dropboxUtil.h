@@ -101,7 +101,7 @@ typedef struct client_node{
 typedef ClientNode* ClientList;
 
 typedef struct d_file {
-  char path[MAXNAME];
+  char path[3*MAXNAME];
   char name[MAXNAME];
 } DFile;
 

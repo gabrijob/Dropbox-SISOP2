@@ -8,10 +8,11 @@
 #define EVENT_BUF_LEN (1024 * (EVENT_SIZE))
 
 /* Uses inotify to watch sync time in a certain period of time */
-void *watcher(void* ptr_path) {
+void *watcher(void* user) {
+	UserInfo *user_info = (UserInfo*) user;
 
-	char* watch_path = malloc(strlen((char*) ptr_path));
-	strcpy(watch_path, (char*) ptr_path);
+	char* watch_path = malloc(strlen((char*) user_info->folder));
+	strcpy(watch_path, (char*) user_info->folder);
 
 	int fd, wd;
 	int length, i = 0;
@@ -42,13 +43,13 @@ void *watcher(void* ptr_path) {
 
 		  			if (event->mask & (IN_CLOSE_WRITE | IN_CREATE | IN_MOVED_TO)) {
 		    				if (check_dir(path) && (event->name[0] != '.')) {
-		      					printf("\nRequest upload: %s\n", path);
-		      					//send_file(path, FALSE);		interface implementation
+		      					printf("\nRequest upload: %s to user_%s\n", event->name, user_info->id);
+		      					send_file_client(event->name, user_info);
 		    				}
 		  			} else if (event->mask & (IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
 	    					if (event->name[0] != '.') {
-	      						printf("\nRequest delete: %s\n", path);
-	      						//delete_file(path);			interface implementation
+	      						printf("\nRequest delete: %s to user_%s\n", event->name, user_info->id);
+	      						delete_file(event->name, user_info);
 	    					}
 		  			}
 				}

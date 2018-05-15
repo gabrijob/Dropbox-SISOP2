@@ -89,6 +89,7 @@ void getModifiedTime(char *path, char *last_modified) {
 		stat(path, &attr);
 		strftime(last_modified, 20, "%d.%m.%Y %H:%M:%S", localtime(&(attr.st_mtime)));
 	}
+	else printf("\nPath %s does not exist to get modification time", path);
 }
 
 time_t getTime(char *last_modified){
@@ -208,7 +209,7 @@ ClientList addClient(char* userID, int socket, ClientList user_list) {
 	return user_list;
 }
 
-newDevice(Client* client, int socket) {
+int newDevice(Client* client, int socket) {
 	if(client->devices[0] == -1) {
 		client->devices[0] = socket;
 		return 0;

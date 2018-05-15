@@ -9,8 +9,8 @@ all: client server
 client: dropboxClient.o dropboxUtil.o sync-client.o watcher.o 
 	$(CC) $(CFLAGS) dropboxClient.o dropboxUtil.o sync-client.o watcher.o  -o $@ -pthread -Iinclude
 
-server: dropboxServer.o dropboxUtil.o sync-server.o watcher.o 
-	$(CC) $(CFLAGS) dropboxServer.o dropboxUtil.o sync-server.o watcher.o  -o $@ -pthread -Iinclude
+server: dropboxServer.o dropboxUtil.o sync-server.o
+	$(CC) $(CFLAGS) dropboxServer.o dropboxUtil.o sync-server.o -o $@ -pthread -Iinclude
 
 %.o: src/%.c include/*.h 
 	$(CC) $(CFLAGS) -c -o $@ $< -pthread -Iinclude
