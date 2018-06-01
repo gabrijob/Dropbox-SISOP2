@@ -9,20 +9,18 @@
 #include "stdio.h"
 
 /*   Global variables   */
-UserInfo user;
-int ID_MSG_CLIENT = 0;
-pthread_t sync_thread;
+int ID_MSG_CLIENT = START_MSG_COUNTER;
+int ID_MSG_SERVER = START_MSG_COUNTER;
+
 
 //Start of client interface
 
-int login_server(char *host, int port) {
-	int func_return, sockid;
-	unsigned int length;
+int login_server(char *host, int port, UserInfo *user) {
+	int sockid;
+	char buffer[BUFFER_SIZE];
 
 	struct sockaddr_in serv_conn, from;
-	
-	Frame packet;
-	
+		
 	sockid = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (sockid == ERROR) {
 		printf("Error opening socket ");
@@ -31,51 +29,61 @@ int login_server(char *host, int port) {
 	else
 		printf("First client socket %i\n", sockid);
 	
-	user.socket_id = sockid;
+	user->socket_id = sockid;
 
 	bzero((char *) &serv_conn, sizeof(serv_conn));
 
 	serv_conn.sin_family = AF_INET;
 	serv_conn.sin_port = htons(port);
 	serv_conn.sin_addr.s_addr = inet_addr(host);
-	user.serv_conn = &serv_conn;
+	user->serv_conn = &serv_conn;
+	
 
-	/* Filling packet structure */
-	bzero(packet.user, MAXNAME-1);
-	strcpy(packet.user, user.id);
-	bzero(packet.buffer, BUFFER_SIZE -1);
-	packet.message_id = ID_MSG_CLIENT;
-	packet.ack = FALSE;
+	/* Sends first message to server */
+	strcpy(buffer, user->id);
+	ID_MSG_CLIENT = START_MSG_COUNTER;
+	if(send_packet(ID_MSG_CLIENT, buffer, sockid, &serv_conn) < 0) {
+		printf("\nERROR starting connection with server"); 
+		return ERROR;
+	}
+	ID_MSG_CLIENT++;
 
-	while((strcmp(user.id, packet.user) != 0) || (packet.ack != TRUE) || (packet.message_id != ID_MSG_CLIENT)) {	
-		printf("Entered\n");
-		func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &serv_conn, sizeof(struct sockaddr_in));
-		if (func_return < 0) {
-			printf("ERROR sendto ");
-			return ERROR;
-		}
-		
-		length = sizeof(struct sockaddr_in);
-		func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
-		if (func_return < 0) {
-			printf("ERROR recvfrom ");
-			return ERROR;
-		}
-	} ID_MSG_CLIENT++;
-	serv_conn.sin_port = htons(atoi(packet.buffer)); //updates default port with port received from the server
+	/* Receives new port for connection */
+	bzero(buffer, BUFFER_SIZE -1);
+	ID_MSG_SERVER = START_MSG_COUNTER;
+	if(recv_packet(ID_MSG_SERVER, buffer, sockid, &from) < 0) {
+		printf("\nERROR starting connection with server"); 
+		return ERROR;
+	}
+	ID_MSG_SERVER++;
+
+	serv_conn.sin_port = htons(atoi(buffer)); //updates default port with port received from the server
 
 	/* Initializes mutex to control comunication with server*/
-	if(pthread_mutex_init(&user.lock_server_comm, NULL) != 0){
+	if(pthread_mutex_init(&user->lock_server_comm, NULL) != 0){
 		printf("ERROR mutex init failed ");
 		return ERROR;
 	}
 
 	/* Sync the files from user to server */
-	sync_client(); 
+	sync_client(user); 
 
 	return SUCCESS;
 }
 
+
+void sync_client(UserInfo *user) {
+	/* verifies if user folder exists */
+	if(check_dir(user->folder) == FALSE) {
+		if(mkdir(user->folder, 0777) != 0) {
+			printf("Error creating user folder '%s'.\n", user->folder);
+		}
+	}
+
+	//synchronize_local(user);
+
+	//synchronize_remote(user);
+}
 
 
 void send_file_client(char *path, UserInfo *user) {
@@ -83,7 +91,6 @@ void send_file_client(char *path, UserInfo *user) {
 	char filepath[MAXPATH];
 	int file_size;
 	int bytes_sent;
-	int func_return;
 	
 	strcpy(filepath, path);
 	filename = basename(path);
@@ -91,43 +98,34 @@ void send_file_client(char *path, UserInfo *user) {
 	int sockid = user->socket_id;
 	struct sockaddr_in* serv_conn = user->serv_conn;
 
-	Frame packet;
-	bzero(packet.user, MAXNAME-1);
-	strcpy(packet.user, user->id);
-	bzero(packet.buffer, BUFFER_SIZE -1);
-	packet.ack = FALSE;
+	char buffer[BUFFER_SIZE];
 
 	printf("\nRequisitando envio de arquivo para porta-%d/socket-%d", ntohs(serv_conn->sin_port), sockid); //DEBUG
 	
 	/* Sends upload request to server */
-	strcpy(packet.buffer, UP_REQ);
-	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
-	if (func_return < 0) {
-		printf("ERROR sendto\n");
+	strcpy(buffer, UP_REQ);
+
+	if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0) {
+		printf("\nERROR sending upload request");
 		return;
 	}
 
 	/* Receive ack from server */
 	struct sockaddr_in from;
-	unsigned int length = sizeof(struct sockaddr_in);
-	func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
-	if (func_return < 0) {
-		printf("ERROR recvfrom\n");
+
+	bzero(buffer, BUFFER_SIZE -1);
+	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0) {
+		printf("\nERROR receiving file name request");
 		return;
 	}
 
-	if(packet.ack == FALSE) {
-		printf("\nREQUEST TO UPLOAD NEGATED");
-		return;
-	}
-
-	if(strcmp(packet.buffer, F_NAME_REQ) == 0) {
+	if(strcmp(buffer, F_NAME_REQ) == 0) {
 		//Pegar apenas o nome do arquivo ou o path ?
-		strcpy(packet.buffer, filename);
-		printf("\nEnviando arquivo: %s\n", packet.buffer); //DEBUG
-		func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
-		if (func_return < 0) {
-			printf("ERROR sendto\n");
+		strcpy(buffer, filename);
+		printf("\nEnviando arquivo: %s\n", buffer); //DEBUG
+	
+		if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0) {
+			printf("\nERROR sending file name");
 			return;
 		}
 	}
@@ -143,22 +141,19 @@ void send_file_client(char *path, UserInfo *user) {
 			return;
 		}
 		
-		sprintf(packet.buffer, "%d", file_size);
-		//packet.ack == FALSE;
+		sprintf(buffer, "%d", file_size);
 		/* Sends the file size to the server*/
-		func_return = sendto(sockid, &packet, sizeof(packet), 0,(struct sockaddr *) serv_conn, sizeof(struct sockaddr));
-		if (func_return < 0) 
-			printf("ERROR on sendto\n");
-	
+		if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0)
+			printf("\nERROR sending file size");
+
 		/* Sends the file in BUFFER_SIZE sized parts*/
 		bytes_sent = 0;
 		while(!feof(file)) {
-			fread(packet.buffer, sizeof(char), BUFFER_SIZE, file);
+			fread(buffer, sizeof(char), BUFFER_SIZE, file);
 			bytes_sent += sizeof(char) * BUFFER_SIZE;
 
-			func_return = sendto(sockid, &packet, sizeof(packet), 0,(struct sockaddr *) serv_conn, sizeof(struct sockaddr));
-			if (func_return < 0) 
-				printf("ERROR on sendto\n");
+			if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0)
+				printf("\nERROR sending file");
 
 			printf("\n Sending file %s - Total: %d / Read: %d", filepath, file_size, bytes_sent); //DEBUG
 		}
@@ -169,50 +164,40 @@ void send_file_client(char *path, UserInfo *user) {
 		printf("\nErro ao abrir o arquivo %s\n", filepath);
 }
 
+
 void get_file(char *filename, UserInfo *user) {
 	int file_size;
 	int bytes_received;
-	int func_return;
 
 	int sockid = user->socket_id;
 	struct sockaddr_in* serv_conn = user->serv_conn;
 
-	Frame packet;
-	bzero(packet.user, MAXNAME-1);
-	strcpy(packet.user, user->id);
-	bzero(packet.buffer, BUFFER_SIZE -1);
-	packet.ack = FALSE;
-
+	char buffer[BUFFER_SIZE];
 
 	/* Sends download request to server */
-	strcpy(packet.buffer, DOWN_REQ);
-	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
-	if (func_return < 0) {
-		printf("ERROR sendto\n");
+	strcpy(buffer, DOWN_REQ);
+
+	if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0) {
+		printf("\nERROR sending download request");
 		return;
 	}
 
 	/* Receive ack from server */
 	struct sockaddr_in from;
-	unsigned int length = sizeof(struct sockaddr_in);
-	func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
-	if (func_return < 0) {
-		printf("ERROR recvfrom\n");
+
+	bzero(buffer, BUFFER_SIZE -1);
+	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0) {
+		printf("\nERROR receiving file name request");
 		return;
 	}
 
-	if(packet.ack == FALSE) {
-		printf("\nREQUEST TO DOWNLOAD NEGATED");
-		return;
-	}
-
-	if(strcmp(packet.buffer, F_NAME_REQ) == 0) {
+	if(strcmp(buffer, F_NAME_REQ) == 0) {
 		//Pegar apenas o nome do arquivo ou o path ?
-		strcpy(packet.buffer, filename);
-		printf("\nPedindo arquivo: %s\n", packet.buffer); //DEBUG
-		func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
-		if (func_return < 0) {
-			printf("ERROR sendto\n");
+		strcpy(buffer, filename);
+		printf("\nPedindo arquivo: %s\n", buffer); //DEBUG
+
+		if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0) {
+			printf("\nERROR sending file name");
 			return;
 		}
 	}
@@ -225,27 +210,24 @@ void get_file(char *filename, UserInfo *user) {
 
 	if(file) {
 		/* Receives the file size from server */
-		func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
-		if (func_return < 0) 
-			printf("ERROR recvfrom\n");
+		if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0)
+			printf("ERROR receiving file size from server\n");
 
-		file_size = atoi(packet.buffer);
-		
-		bzero(packet.buffer, BUFFER_SIZE -1);		
-		packet.ack = TRUE;
+		file_size = atoi(buffer);		
 
 		bytes_received = 0;
+		/* Receives the file in BUFFER_SIZE sized parts*/
 		while(file_size > bytes_received) {
-			func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
-			if (func_return < 0) 
-				printf("ERROR recvfrom\n");
+			bzero(buffer, BUFFER_SIZE);
+			if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0)
+				printf("ERROR receiving file from server\n");
 
 			if((file_size - bytes_received) > BUFFER_SIZE) {
-				fwrite(packet.buffer, sizeof(char), BUFFER_SIZE, file);
+				fwrite(buffer, sizeof(char), BUFFER_SIZE, file);
 				bytes_received += sizeof(char) * BUFFER_SIZE; 
 			}
 			else {
-				fwrite(packet.buffer, sizeof(char), (file_size - bytes_received), file);
+				fwrite(buffer, sizeof(char), (file_size - bytes_received), file);
 				bytes_received += sizeof(char) * (file_size - bytes_received);
 			}
 			printf("\n Receiving file %s - Total: %d / Written: %d", filename, file_size, bytes_received); //DEBUG
@@ -257,314 +239,71 @@ void get_file(char *filename, UserInfo *user) {
 		printf("\nErro ao abrir o arquivo %s", filepath);
 }
 
-void list_server() {
-	Frame packet;
-	bzero(packet.user, MAXNAME-1);
-	strcpy(packet.user, user.id);
-	bzero(packet.buffer, BUFFER_SIZE -1);
-	packet.ack = FALSE;
-	
-	int func_return;
-	int sockid = user.socket_id;
-
-	struct sockaddr_in *serv_conn = user.serv_conn;
-
-	int number_files = 0;
-
-	printf("\n-SERVER DIRECTORY CONTENT-\n");
-
-	/* Request List Server */
-	strcpy(packet.buffer, LIST_S_REQ);
-	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
-	if (func_return < 0) {
-		printf("ERROR sendto\n");
-		return;
-	}
-
-	/* Receive ack and number of files from server*/
-	struct sockaddr_in from;
-	unsigned int length = sizeof(struct sockaddr_in);
-	func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
-	if (func_return < 0) {
-		printf("ERROR recvfrom\n");
-		return;
-	}
-
-	if(packet.ack == FALSE) {
-		printf("\nREQUEST TO SEE SERVER LIST NEGATED");
-		return;
-	}
-
-	number_files = atoi(packet.buffer);
-	printf("\nNumber of files: %d\n", number_files);
-	for(int i = 0; i < number_files; i++) {
-		func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
-		if (func_return < 0) {
-			printf("ERROR recvfrom\n");
-		}
-		printf("%s\n", packet.buffer);
-	}
-}
-
-void list_client() {
-	if(!fileExists(user.folder)) {
-    	printf("Error, User folder '%s' doesn't exist.\n", user.folder);
-  	} else {
-		printf("\n-CLIENT DIRECTORY CONTENT-\n");
-    	print_dir_file_info(user.folder);
-  	}
-}
-
-void sync_client() {
-	/* verifies if user folder exists */
-	if(check_dir(user.folder) == FALSE) {
-		if(mkdir(user.folder, 0777) != 0) {
-			printf("Error creating user folder '%s'.\n", user.folder);
-		}
-	}
-
-	synchronize_local(&user);
-
-	synchronize_remote(&user);
-}
-
-void get_sync_dir() {
-	int sockid = user.socket_id;
-	struct sockaddr_in *serv_conn = user.serv_conn;
-
-	Frame packet;
-	bzero(packet.user, MAXNAME-1);
-	strcpy(packet.user, user.id);
-	bzero(packet.buffer, BUFFER_SIZE -1);
-	packet.ack = FALSE;
-	int func_return;
-	
-	/* Send synchronization request to server */
-	strcpy(packet.buffer, SYNC_REQ);
-	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
-	if (func_return < 0) {
-		printf("ERROR sendto DEL_REQ\n");
-	}
-
-	//Receive ack from server 
-	struct sockaddr_in from;
-	unsigned int length = sizeof(struct sockaddr_in);
-	func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
-	if (func_return < 0) {
-		printf("ERROR recvfrom from delete\n");
-	}
-
-	if(packet.ack == FALSE) {
-		printf("\nREQUEST TO SYNCHRONIZE NEGATED");
-		return;
-	}
-
-	sync_client();
-}
 
 void delete_file(char *filename, UserInfo *user) {
 	int sockid = user->socket_id;
 	struct sockaddr_in *serv_conn = user->serv_conn;
 
-	Frame packet;
-	bzero(packet.user, MAXNAME-1);
-	strcpy(packet.user, user->id);
-	bzero(packet.buffer, BUFFER_SIZE -1);
-	packet.ack = FALSE;
-	int func_return;
+	char buffer[BUFFER_SIZE];
 
+	//Send delete request to server
+	strcpy(buffer, DEL_REQ);
 
-	//send delete request to server
-	strcpy(packet.buffer, DEL_REQ);
-	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
-	if (func_return < 0) {
-		printf("ERROR sendto DEL_REQ\n");
+	if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0) {
+		printf("\n ERROR sending delete request");
+		return;
 	}
 
 	//Receive ack from server 
 	struct sockaddr_in from;
-	unsigned int length = sizeof(struct sockaddr_in);
-	func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
-	if (func_return < 0) {
-		printf("ERROR recvfrom from delete\n");
-	}
-
-	if(packet.ack == FALSE) {
-		printf("\nREQUEST TO DELETE NEGATED");
+	bzero(buffer, BUFFER_SIZE -1);
+	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0) {
+		printf("\nERROR receiving file name request");
+		return;
 	}
 
 	//Mandando o nome do arquivo pro servidor
-	if(strcmp(packet.buffer, F_NAME_REQ) == 0) {
+	if(strcmp(buffer, F_NAME_REQ) == 0) {
 		//Pegar apenas o nome do arquivo ou o path ?
-		strcpy(packet.buffer, filename);
-		printf("Deletando arquivo: %s\n", packet.buffer); //DEBUG
-		func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
-		if (func_return < 0) {
-			printf("ERROR sendto F_NAME_REQ\n");
+		strcpy(buffer, filename);
+		printf("\nDeletando arquivo: %s", buffer); //DEBUG
+
+		if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0) {
+			printf("\nERROR sending file name");
+			return;
 		}
 	}	
 
 	//Recebe confirmação do servidor
-	func_return = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &from, &length);
-	if (func_return < 0) {
-		printf("ERROR recvfrom from delete reply\n");
+	bzero(buffer, BUFFER_SIZE -1);
+	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0) {
+		printf("\nERROR receiving delete confirmation");
+		return;
 	}
-	if(strcmp(packet.buffer, DEL_COMPLETE) == 0){
-		printf("Arquivo deletado!");
+	if(strcmp(buffer, DEL_COMPLETE) == 0){
+		printf("\nArquivo deletado!");
 	}
-
 }
 
-void close_session() { //TODO: corrigir segmentation fault 
 
-	Frame packet;
-	bzero(packet.user, MAXNAME-1);
-	strcpy(packet.user, user.id);
-	bzero(packet.buffer, BUFFER_SIZE -1);
-	packet.ack = FALSE;
-	
-	int func_return;
-	int sockid = user.socket_id;
+void close_session(UserInfo *user) { //TODO: corrigir segmentation fault 
 
-	struct sockaddr_in *serv_conn = user.serv_conn;
+	char buffer[BUFFER_SIZE];
 
-	//Fecha a thread de sincronizacao
-	pthread_cancel(sync_thread);
+	int sockid = user->socket_id;
+	struct sockaddr_in *serv_conn = user->serv_conn;
 	
 	//Destroi mutex
-	pthread_mutex_destroy(&user.lock_server_comm);
+	pthread_mutex_destroy(&user->lock_server_comm);
 
 	//Finaliza thread do servidor
-	strcpy(packet.buffer, END_REQ);
-	func_return = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) serv_conn, sizeof(struct sockaddr_in));
-	if (func_return < 0) {
-		printf("ERROR sendto END_REQ\n");
-	}
+	strcpy(buffer, END_REQ);
+	if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0)
+		printf("ERROR requesting session end");
 
 	//Fecha o socket do cliente
-	close(user.socket_id);
+	close(user->socket_id);
 
 }
 
-void client_menu() {
-	char command_line[MAXPATH];
-	char *command;
-	char *attribute;
-	int control_thread;
-	
-
-	/* cria thread para manter a sincronização local */
-	if((control_thread = pthread_create(&sync_thread, NULL, watcher, (void *) &user))) {
-		printf("Syncronization Thread creation failed: %d\n", control_thread);
-	}
-
-	int exited = FALSE;
-	while(!exited){
-		printf("\nEsperando comandos...\n");
-
-		if(fgets(command_line, sizeof(command_line)-1, stdin) != NULL) {
-			command_line[strcspn(command_line, "\r\n")] = 0;
-
-			if (strcmp(command_line, "exit") == 0) 
-				exited = TRUE;
-			else {
-				command = strtok(command_line, " ");
-				attribute = strtok(NULL, " ");
-			}
-
-			/* UPLOAD */
-			if(strcmp(command, "upload") == 0) {
-				pthread_mutex_lock(&user.lock_server_comm);
-				send_file_client(attribute, &user);
-				pthread_mutex_unlock(&user.lock_server_comm);
-			}
-			/* DOWNLOAD */
-			else if(strcmp(command, "download") == 0) {
-				pthread_mutex_lock(&user.lock_server_comm);
-				get_file(attribute, &user);
-				pthread_mutex_unlock(&user.lock_server_comm);
-			}
-			/* LIST_SERVER */
-			else if(strcmp(command, "list_server") == 0) {
-				pthread_mutex_lock(&user.lock_server_comm);
-				list_server();
-				pthread_mutex_unlock(&user.lock_server_comm);
-			}
-			/* LIST_CLIENT */
-			else if(strcmp(command, "list_client") == 0) {
-				list_client();
-			}
-			/* GET_SYNC_DIR*/
-			else if(strcmp(command, "get_sync_dir") == 0) {
-				pthread_mutex_lock(&user.lock_server_comm);
-				get_sync_dir();
-				pthread_mutex_unlock(&user.lock_server_comm);
-			} 
-			/* DELETE */
-			else if(strcmp(command, "delete") == 0) {
-				pthread_mutex_lock(&user.lock_server_comm);
-				delete_file(attribute, &user);
-				pthread_mutex_unlock(&user.lock_server_comm);
-			}
-			/* INVALID COMMAND*/
-			/*else
-				printf("\nComando invalido");*/	
-
-		}
-		else
-			printf("\nFalha ao ler comando");
-	}
-
-	close_session();
-}
-
-int main(int argc, char *argv[]) {
-
-	int port, sockid;
-	char *address;
-
-
-	if (argc != 4) {
-		puts("Error! Insuficient Arguments");
-		puts("Expected: './dropboxClient user address port'");
-
-		return ERROR;
-	}
-
-	/* Setting user information by parsing entries */
-	if (strlen(argv[1]) <= MAXNAME) {
-		if (strcmp(argv[1], SERVER_USER) == 0) {
-			printf("Invalid User! Please do not use 'server' as ID...\n");
-			return ERROR;
-		}
-
-		strcpy(user.id, argv[1]);
-		sprintf(user.folder, "%s/sync_dir_%s", getUserHome(), user.id);
-	} else {
-		puts("Maximum user ID size exceeded\n");
-		printf("Maximum: %d\n", MAXNAME);
-
-		return ERROR;
-	}
-	
-	address = malloc(strlen(argv[2]));
-	strcpy(address, argv[2]);
-
-	port = atoi(argv[3]);
-	/* End of initial parsing */
-
-
-	/* Starts communication with the server
-	        -> Opens a socket UDP */
-	sockid = login_server(address, port); 
-	if (sockid == SUCCESS) {
-	
-		/* Display client interface */
-		client_menu();
-
-	} else {
-		printf("Could not connect to server '%s' at port '%d'\n", address, port);
-		return ERROR;
-	}
-}
 #endif

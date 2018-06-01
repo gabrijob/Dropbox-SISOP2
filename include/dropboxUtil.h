@@ -22,6 +22,8 @@
 #include <semaphore.h>
 #include <dirent.h>
 
+#include "udp_assist.h"
+
 
 #define DYN_PORT_START 49153
 #define DYN_PORT_END 65535
@@ -33,7 +35,6 @@
 #define MAXNAME 25
 #define MAXFILES 50
 #define MAXPATH MAXFILES*MAXNAME
-#define BUFFER_SIZE 1024
 #define MAX_CLIENTS 10
 
 #define ERROR -1
@@ -42,6 +43,7 @@
 #define FALSE !(TRUE)
 
 /* Communication constants */
+#define START_MSG_COUNTER 0
 #define END_REQ "END SESSION REQUEST"
 #define UP_REQ "FILE UPLOAD REQUEST"
 #define F_NAME_REQ "FILE NAME REQUEST"
@@ -50,6 +52,7 @@
 #define DEL_REQ "FILE DELETE REQUEST"
 #define DEL_COMPLETE "FILE DELETED"
 #define SYNC_REQ "SYNCHRONIZATION REQUEST"
+#define UPDATE_PROC "FILE UPDATE PROCEDURE"
 
 #define S_SYNC "sync"
 #define S_NSYNC "not_sync"
@@ -120,13 +123,13 @@ typedef struct dir_content {
 	->ack		:	if the ack is confirmed must be TRUE
 	->buffer	:	contains the string content of the message
 	->user		:	contains the info of who sent the message (always as client, server user is default)
-*/
+*//*
 typedef struct frame{
     int message_id;			
     bool ack;				
     char buffer[BUFFER_SIZE];
     char user[MAXNAME];
-}Frame;
+}Frame;*/
 /* End of Ack */
 
 

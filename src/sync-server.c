@@ -3,21 +3,109 @@
 
 #include "sync-server.h"
 
+
+int getFileIndex(char *filename, FileInfo *files, int number_of_files) {
+	
+	for(int i = 0; i < number_of_files; i++) {
+		if(strcmp(filename, files[i].name) == 0)
+			return i;
+	}
+
+	return -1;
+}
+
+
+
 void synchronize_client(int sockid, Client* client_sync) { 
 
-	char buffer[BUFFER_SIZE];	
-	int status = 0;
+	char buffer[BUFFER_SIZE];
+	char filename[MAXNAME];
+	char filepath[4*MAXNAME];
+	int file_index;	
+	//int status = 0;
 	bool flag = FALSE;
-	Frame packet;
-	socklen_t clilen;
+	//Frame packet;
+	//socklen_t clilen;
 
 	struct sockaddr_in cli_addr;
-	clilen = sizeof(struct sockaddr_in);
+	//clilen = sizeof(struct sockaddr_in);
 
 	printf("\nIniciando sincronização do cliente.\n");	//debug
 
+	/* Receives number of files on client */
+	bzero(buffer, BUFFER_SIZE);
+	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+		printf("\nERROR starting sync");
+
+	int number_files_client = atoi(buffer);
+	printf("Number of files no cliente: %d\n", number_files_client); //debug
+	
+	//for each file on client
+	for(int i = 0; i < number_files_client; i++) {
+		/* Receive file name */
+		bzero(buffer, BUFFER_SIZE);
+		if(recv_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+			printf("\nERROR receiving file name");
+		
+		strcpy(filename, buffer);
+	    printf("Nome recebido: %s\n", filename);		//debug
+		sprintf(filepath, "%s/%s/%s/%s", getUserHome(), SERVER_FOLDER, client_sync->userid, filename);
+
+
+		/* Check file status on server */
+		file_index = getFileIndex(filename, client_sync->files, client_sync->n_files);
+		if(file_index >= 0) {
+
+			/* Tells client to start file update procedure */
+			strcpy(buffer, UPDATE_PROC);
+			if(send_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+				printf("\nERROR starting file update procedure");
+
+			strcpy(buffer, client_sync->files[file_index].last_modified);
+		    printf("Last modified: %s\n", buffer);	//debug
+		
+
+		    /* Sends the file's last modification */
+			if(send_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+				printf("\nERROR starting file update procedure");
+
+
+			/* Receive answer from client */
+			bzero(buffer, BUFFER_SIZE);
+			if(recv_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+				printf("\nERROR receiving answer from client");			
+			
+			printf("Received: %s\n", buffer);
+		    if(strcmp(buffer, DOWN_REQ) == 0){ 
+		      	send_file_server(filename, sockid, atoi(client_sync->userid), &cli_addr);
+		    }
+			if(strcmp(buffer, UP_REQ) == 0){
+				receive_file(filename, sockid, atoi(client_sync->userid));
+			}
+
+		}
+		else {
+			/* Send delete request to client */
+			strcpy(buffer, DEL_REQ);
+			if(send_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+				printf("\nERROR requesting file deletion");
+
+
+			/* Receive delete confirmation from client */
+			bzero(buffer, BUFFER_SIZE);
+			if(recv_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+				printf("\nERROR receiving delete confirmation");
+
+			if(strcmp(buffer, DEL_COMPLETE) == 0)
+				printf("\nFile: %s deleted at client", filename); //debug
+		}		
+	}
+
+	printf("Encerrando sincronização do cliente.\n");		
+
 	/* Getting an ACK */
 	/* SYNC	*/
+	/*
 	do {
 		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
 		if (strcmp(packet.buffer, S_NSYNC) == 0)
@@ -30,20 +118,23 @@ void synchronize_client(int sockid, Client* client_sync) {
 	if (status < 0) {
 		printf("ERROR reading from socket in sync-server client\n");
 	}
+	
+	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+		printf("\nERROR starting sync");
 
-	sprintf(packet.buffer, "%d", client_sync->n_files);
-	packet.ack = FALSE; strcpy(packet.user, SERVER_USER);
+	sprintf(buffer, "%d", client_sync->n_files);
+	//packet.ack = FALSE; strcpy(packet.user, SERVER_USER);
 	printf("Client number of files: %d.\n", client_sync->n_files);	//debug
 
 	/* Writes the number of files in server */
+	/*
 	while(packet.ack != TRUE){
 		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &cli_addr, sizeof(struct sockaddr_in));
 		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen); 
 	}
 	if (status < 0) {
 	    	printf("ERROR writing to socket in sync-server client\n");
-	}
-		
+	}		
 
 	for(int i = 0; i < client_sync->n_files; i++) {
 			strcpy(packet.user, SERVER_USER);
@@ -51,8 +142,9 @@ void synchronize_client(int sockid, Client* client_sync) {
 
 		    strcpy(packet.buffer, client_sync->files[i].name);
 		    printf("Nome do arquivo a enviar: %s\n", client_sync->files[i].name);	//debug
-		    
+	*/	    
 		    /* Sends the file name to client */
+			/*
 		    while(packet.ack != TRUE) {
 		    	status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &cli_addr, sizeof(struct sockaddr_in));
 		    	status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
@@ -65,8 +157,9 @@ void synchronize_client(int sockid, Client* client_sync) {
 
 		    strcpy(packet.buffer, client_sync->files[i].last_modified);
 		    printf("Last modified: %s\n", client_sync->files[i].last_modified);	//debug
-		
+		*/
 		    /* Sends the file's last modification */
+			/*
 		    while(packet.ack != TRUE) {
 		    	status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &cli_addr, sizeof(struct sockaddr_in));
 		    	status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
@@ -99,11 +192,10 @@ void synchronize_client(int sockid, Client* client_sync) {
 		      	send_file_server(client_sync->files[i].name, sockid, atoi(client_sync->userid), &cli_addr);
 		    }
 	  }
-
-	  printf("Encerrando sincronização do cliente.\n");
+*/
 }
 
-void synchronize_server(int sockid_sync, Client* client_sync, ServerInfo serverInfo) {
+void synchronize_server(int sockid_sync, Client* client_sync) {
 
 	char buffer[BUFFER_SIZE]; // 1 KB buffer
 	char path[MAXNAME * 3 + 1];
@@ -173,7 +265,7 @@ void synchronize_server(int sockid_sync, Client* client_sync, ServerInfo serverI
 	    strcpy(last_modified, packet.buffer);
 	    printf("Last modified recebido: %s\n", last_modified);	
 
-    	sprintf(path, "%s/%s/%s", serverInfo.folder, client_sync->userid, file_name);
+    	sprintf(path, "%s/%s/%s/%s", getUserHome(), SERVER_FOLDER, client_sync->userid, file_name);
     	getModifiedTime(path, last_modified_file_2);
 		packet.ack = FALSE;
 
