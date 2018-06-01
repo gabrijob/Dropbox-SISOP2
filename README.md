@@ -4,7 +4,7 @@ Usage:
 
 make all
 
-./dropboxServer port-number
+./server port-number
 
-./dropboxClient user-id hostname port-number
+./client user-id hostname port-number
 
