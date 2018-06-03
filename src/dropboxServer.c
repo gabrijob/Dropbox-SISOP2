@@ -15,7 +15,7 @@ void sync_server(int sock_s, Client *client_s) {
 }
 
 
-void receive_file(char* filename, int sockid, int id) {
+void receive_file(char* filename, int sockid, char* id) {
 	char filepath[3*MAXNAME];
 	int bytes_received;
 	int file_size;
@@ -24,7 +24,7 @@ void receive_file(char* filename, int sockid, int id) {
 
 	struct sockaddr_in cli_addr;
 
-	sprintf(filepath, "%s/%s/%d/%s", getUserHome(), SERVER_FOLDER, id, filename);
+	sprintf(filepath, "%s/%s/%s/%s", getUserHome(), SERVER_FOLDER, id, filename);
 	printf("Receiving file at %s", filepath); //DEBUG
 	FILE* file;
 	file = fopen(filepath, "wb");
@@ -66,14 +66,14 @@ void receive_file(char* filename, int sockid, int id) {
 }
 
 
-void send_file_server(char *filename, int sockid, int id, struct sockaddr_in *cli_addr) {
+void send_file_server(char *filename, int sockid, char* id, struct sockaddr_in *cli_addr) {
 	char filepath[3*MAXNAME];
 	int bytes_sent;
 	int file_size;
 
 	char buffer[BUFFER_SIZE];
 
-	sprintf(filepath, "%s/%s/%d/%s", getUserHome(), SERVER_FOLDER, id, filename);
+	sprintf(filepath, "%s/%s/%s/%s", getUserHome(), SERVER_FOLDER, id, filename);
 	printf("Sending file at %s", filepath); //DEBUG
 
 	FILE* file;

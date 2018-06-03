@@ -11,7 +11,7 @@ sem_t semaphore;
 
 void list_server(int sockid, Client* client, struct sockaddr_in *cli_addr) {
 	char client_folder[3*MAXNAME];
-    char buffer[BUFFER_SIZE];
+    	char buffer[BUFFER_SIZE];
 
 	sprintf(client_folder, "%s/%s", serverInfo.folder, client->userid);
 
@@ -139,31 +139,35 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 	if(strcmp(buffer, UP_REQ) == 0) {
 		strcpy(buffer, F_NAME_REQ);
 		/* Request filename */
-        if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
-            printf("\nERROR requesting file name");
+        	if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+            		printf("\nERROR requesting file name");
         
-        /* Receive filename */
-        if(recv_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
-            printf("\nERROR receiving file name");
+        	/* Receive filename */
+        	if(recv_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+            		printf("\nERROR receiving file name");
 
 		char filename[MAXNAME];
 		sprintf(filename, "%s", buffer);
-		receive_file(filename, socket, atoi(client->userid));	
+		//DEBUG//
+		printf("Getting client id: ");
+		puts(client->userid);
+		//DEBUG//
+		receive_file(filename, socket, client->userid);	
 	} 
 	/* DOWNLOAD */
 	else if(strcmp(buffer, DOWN_REQ) == 0) {
 		strcpy(buffer, F_NAME_REQ);
 		/* Request filename */
-        if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
-            printf("\nERROR requesting file name");
+        	if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+            		printf("\nERROR requesting file name");
        
-        /* Receive filename */
-        if(recv_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
-            printf("\nERROR receiving file name");
+        	/* Receive filename */
+        	if(recv_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+            		printf("\nERROR receiving file name");
         
 		char filename[MAXNAME];
 		sprintf(filename, "%s", buffer);
-		send_file_server(filename, socket, atoi(client->userid), cli_addr);		
+		send_file_server(filename, socket, client->userid, cli_addr);		
 	}
 	/* LIST_SERVER */
 	else if(strcmp(buffer, LIST_S_REQ) == 0) {
@@ -177,12 +181,12 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 	else if(strcmp(buffer, DEL_REQ) == 0) {
 		strcpy(buffer, F_NAME_REQ);
 		/* Request filename */
-        if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
-            printf("\nERROR requesting file name");
+        	if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+            		printf("\nERROR requesting file name");
 
-        /* Receive filename */
-        if(recv_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
-            printf("\nERROR receiving file name");
+        	/* Receive filename */
+        	if(recv_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+            		printf("\nERROR receiving file name");
 
 		char filename[MAXNAME];
 		sprintf(filename, "%s",buffer);
@@ -190,8 +194,8 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 			strcpy(buffer, DEL_COMPLETE);
 
 		/* Send confirmation */
-       	if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
-            printf("\nERROR sending deletion confirmation");	
+       		if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+            		printf("\nERROR sending deletion confirmation");	
 	}
 }
 
@@ -200,7 +204,7 @@ void* clientThread(void* connection_struct) {
 	puts("Reached control thread");
 	struct sockaddr_in cli_addr;		
 
-    char buffer[BUFFER_SIZE];
+    	char buffer[BUFFER_SIZE];
 	int socket;
 	char client_id[MAXNAME];
 	//char *client_ip;
@@ -260,9 +264,9 @@ void* clientThread(void* connection_struct) {
 			printf("\nWaiting for commands from client-%s at port-%d/socket-%d\n", client_id, connection->port, socket); //DEBUG
 			bzero(buffer, BUFFER_SIZE -1);
           
-            if(recv_packet(START_MSG_COUNTER, buffer, socket, &cli_addr) < 0) {
-                printf("\nERROR receiving command");
-            }
+            		if(recv_packet(START_MSG_COUNTER, buffer, socket, &cli_addr) < 0) {
+                		printf("\nERROR receiving command");
+            		}
 			if(strcmp(buffer, END_REQ) == 0) {
 				connected = FALSE;
 				sem_post(&semaphore);
@@ -307,7 +311,7 @@ void wait_connection(char* address, int sockid) {
 		sem_wait(&semaphore);
 		
 		/* inet_ntoa converts the network address into a string */
-      	client_ip = inet_ntoa(cli_addr.sin_addr); 
+      		client_ip = inet_ntoa(cli_addr.sin_addr); 
 
 		/* Starts a new client connection */
 		Connection *connection = malloc(sizeof(*connection));

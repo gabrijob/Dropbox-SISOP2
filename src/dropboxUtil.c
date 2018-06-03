@@ -27,7 +27,11 @@ int get_dir_file_info(char * path, FileInfo files[]) {
     		sprintf(path_file, "%s/%s", dfiles[i].path, dfiles[i].name);
   		getModifiedTime((char*) &path_file, (char*) &files[i].last_modified);
     		getFileExtension(dfiles[i].name, (char*) &files[i].extension);
-  		files[i].size = getFileSize(dfiles[i].path);
+		//debug//
+		printf("arquivo: ");
+		puts(path_file);
+		//debug//
+  		files[i].size = getFileSize(path_file);
   	}
   	return counter;
 }

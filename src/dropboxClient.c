@@ -204,7 +204,7 @@ void get_file(char *filename, UserInfo *user) {
 
 	char filepath[3*MAXNAME];
 	sprintf(filepath, "%s/%s", user->folder, filename);
-	printf("Receiving file at %s", filepath); //DEBUG
+	printf("File at %s for download", filepath); //DEBUG
 	FILE* file;
 	file = fopen(filepath, "wb");
 
