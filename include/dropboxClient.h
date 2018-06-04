@@ -12,7 +12,7 @@ void sync_client(UserInfo *user);
 
 void send_file_client(char *path, UserInfo *user);
 
-void get_file(char *filename, UserInfo *user);
+void get_file(char *filename, UserInfo *user, char *path_download);
 
 void delete_file(char *filename, UserInfo *user);
 

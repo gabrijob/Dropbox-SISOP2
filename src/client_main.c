@@ -77,6 +77,7 @@ void client_menu() {
 	char command_line[MAXPATH];
 	char *command;
 	char *attribute;
+	char *attribute_download;
 	int control_thread;
 	
 
@@ -97,6 +98,7 @@ void client_menu() {
 			else {
 				command = strtok(command_line, " ");
 				attribute = strtok(NULL, " ");
+				attribute_download = strtok(NULL, " ");
 			}
 
 			/* UPLOAD */
@@ -108,7 +110,7 @@ void client_menu() {
 			/* DOWNLOAD */
 			else if(strcmp(command, "download") == 0) {
 				pthread_mutex_lock(&user.lock_server_comm);
-				get_file(attribute, &user);
+				get_file(attribute, &user, attribute_download);
 				pthread_mutex_unlock(&user.lock_server_comm);
 			}
 			/* LIST_SERVER */

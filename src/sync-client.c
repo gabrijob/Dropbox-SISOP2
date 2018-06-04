@@ -99,11 +99,11 @@ void synchronize_local(UserInfo *user) {
 
 		if(check_dir(path) == FALSE) {;					
 			printf("File %s does not exist... downloading\n", file_name);	//debug
-			get_file(file_name, user);
+			//get_file(file_name, user);
 
 		} else if (older_file(last_modified, last_modified_file_2) == SUCCESS) {
 			printf("File %s older... downloading\n", file_name);	//debug
-			get_file(file_name, user);
+			//get_file(file_name, user);
 
 		} else {
 			strcpy(packet.buffer, S_OK);

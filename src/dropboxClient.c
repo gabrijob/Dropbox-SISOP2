@@ -165,7 +165,7 @@ void send_file_client(char *path, UserInfo *user) {
 }
 
 
-void get_file(char *filename, UserInfo *user) {
+void get_file(char *filename, UserInfo *user, char *path_download) {
 	int file_size;
 	int bytes_received;
 
@@ -203,8 +203,16 @@ void get_file(char *filename, UserInfo *user) {
 	}
 
 	char filepath[3*MAXNAME];
-	sprintf(filepath, "%s/%s", user->folder, filename);
-	printf("File at %s for download", filepath); //DEBUG
+	if (strcmp(path_download, " ") == 0) {
+		sprintf(filepath, "%s/%s", user->folder, filename);
+		printf("No specified path to download file, default is on user's dir\n");
+
+	}
+	else {
+		sprintf(filepath, "%s/%s", path_download, filename);
+		printf("Path specified is %s\n", path_download);
+	}
+	printf("File will be donwloaded in %s", filepath); //DEBUG
 	FILE* file;
 	file = fopen(filepath, "wb");
 
