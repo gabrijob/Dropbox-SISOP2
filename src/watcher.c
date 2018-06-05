@@ -64,7 +64,7 @@ void *watcher(void* user) {
 	      		}
 		}
 
-		usleep(100);
+		usleep(5000000);
 	}
 
 	inotify_rm_watch(fd, wd);

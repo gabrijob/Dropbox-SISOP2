@@ -11,7 +11,7 @@ void sync_server(int sock_s, Client *client_s) {
 
 	synchronize_client(sock_s, client_s);
 
-	//synchronize_server(sock_s, client_s);
+	synchronize_server(sock_s, client_s);
 }
 
 
@@ -87,6 +87,7 @@ void send_file_server(char *filename, int sockid, char* id, struct sockaddr_in *
 		}
 
 		sprintf(buffer, "%d", file_size);
+		printf("\nFile size: %s", buffer);
 
 		/* Sends the file size to the client*/
 		if(send_packet(START_MSG_COUNTER, buffer, sockid, cli_addr) < 0)

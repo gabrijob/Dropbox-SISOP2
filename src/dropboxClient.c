@@ -82,7 +82,7 @@ void sync_client(UserInfo *user) {
 
 	synchronize_local(user);
 
-	//synchronize_remote(user);
+	synchronize_remote(user);
 }
 
 
@@ -221,7 +221,8 @@ void get_file(char *filename, UserInfo *user, char *path_download) {
 		if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0)
 			printf("ERROR receiving file size from server\n");
 
-		file_size = atoi(buffer);		
+		printf("\nFile size: %s", buffer);
+		file_size = atoi(buffer);
 
 		bytes_received = 0;
 		/* Receives the file in BUFFER_SIZE sized parts*/

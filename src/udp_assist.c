@@ -57,7 +57,6 @@ int recv_packet(int msgid, char *buffer, int sockid, struct sockaddr_in *from){
 	}while (packet.ack != TRUE );
 
     strncpy(buffer, packet.buffer, BUFFER_SIZE);
-
     return 0;
 }
 
