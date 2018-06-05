@@ -25,7 +25,7 @@ void receive_file(char* filename, int sockid, char* id) {
 	struct sockaddr_in cli_addr;
 
 	sprintf(filepath, "%s/%s/%s/%s", getUserHome(), SERVER_FOLDER, id, filename);
-	printf("Receiving file at %s", filepath); //DEBUG
+	printf("\nReceiving file at %s", filepath); //DEBUG
 	FILE* file;
 	file = fopen(filepath, "wb");
 
@@ -62,7 +62,7 @@ void receive_file(char* filename, int sockid, char* id) {
 		fclose(file);
 	}
 	else
-		printf("Erro ao abrir o arquivo %s\n", filepath);
+		printf("\nErro ao abrir o arquivo %s\n", filepath);
 }
 
 
@@ -74,7 +74,7 @@ void send_file_server(char *filename, int sockid, char* id, struct sockaddr_in *
 	char buffer[BUFFER_SIZE];
 
 	sprintf(filepath, "%s/%s/%s/%s", getUserHome(), SERVER_FOLDER, id, filename);
-	printf("Sending file at %s", filepath); //DEBUG
+	printf("\nSending file at %s", filepath); //DEBUG
 
 	FILE* file;
 	file = fopen(filepath, "rb");
@@ -108,7 +108,7 @@ void send_file_server(char *filename, int sockid, char* id, struct sockaddr_in *
 		fclose(file);
 	}
 	else
-		printf("Erro ao abrir o arquivo %s\n", filepath);
+		printf("\nErro ao abrir o arquivo %s\n", filepath);
 }
 
 #endif

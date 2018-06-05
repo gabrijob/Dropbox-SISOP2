@@ -27,10 +27,7 @@ int get_dir_file_info(char * path, FileInfo files[]) {
     		sprintf(path_file, "%s/%s", dfiles[i].path, dfiles[i].name);
   		getModifiedTime((char*) &path_file, (char*) &files[i].last_modified);
     		getFileExtension(dfiles[i].name, (char*) &files[i].extension);
-		//debug//
-		printf("arquivo: ");
-		puts(path_file);
-		//debug//
+		
   		files[i].size = getFileSize(path_file);
   	}
   	return counter;
@@ -285,6 +282,18 @@ int removeDevice(Client* client, int device) {
 
 	return -1;
 }
+
+int devicesOn(Client* client) {
+	int devices_on = 0;
+
+	if(client->devices[0] > 0) 
+		devices_on++;
+
+	if(client->devices[1] > 0)
+		devices_on++;
+
+	return devices_on;
+}	
 
 int fileExists(char* filename) {
 	struct stat buffer;

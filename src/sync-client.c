@@ -2,8 +2,6 @@
 #define SYNC_CLIENT_CODE
 
 
-/* Defining constants to the watcher thread */
-
 #include "sync-client.h"
 
 
@@ -22,7 +20,7 @@ void synchronize_local(UserInfo *user) {
 
 	struct sockaddr_in* serv_addr = user->serv_conn;
 
-	printf("Starting local sync-client\n");		//debug
+	printf("\nStarting local sync-client\n");		//debug
 	
 	/* Send start sync message */
 	strcpy(buffer, S_SYNC);
@@ -36,7 +34,7 @@ void synchronize_local(UserInfo *user) {
 		printf("\nERROR receiving number of files at server");
 
 	number_files_server = atoi(buffer);
-	printf("%d arquivos no servidor\n", number_files_server); //debug
+	printf("\n%d arquivos no servidor", number_files_server); //debug
 	
 
 	//for each file on server
@@ -48,7 +46,7 @@ void synchronize_local(UserInfo *user) {
 			printf("\nERROR receiving file name");
 
 		strcpy(filename, buffer);
-		printf("Nome recebido: %s\n", filename);			//debug
+		printf("\nNome recebido: %s", filename);			//debug
 
 
 		/* Receive file's last modification at server */
@@ -57,7 +55,7 @@ void synchronize_local(UserInfo *user) {
 			printf("\nERROR receiving file's last modification");
 
 		strcpy(last_modified_server, buffer);
-		printf("Last modified: %s\n", last_modified_server);			//debug
+		printf("\nLast modified: %s", last_modified_server);			//debug
 
 
 		sprintf(path, "%s/%s", user->folder, filename);
@@ -66,11 +64,11 @@ void synchronize_local(UserInfo *user) {
 
 		/* Asks for file if it's older or doesn't exist */
 		if(check_dir(path) == FALSE) {;					
-			printf("File %s does not exist... downloading\n", filename);	//debug
+			printf("\nFile %s does not exist... downloading", filename);	//debug
 			get_file(filename, user, user->folder);
 		}
 		else if (older_file(last_modified_server, last_modified_client) == 0) {
-			printf("File %s older... downloading\n", filename);	//debug
+			printf("\nFile %s older... downloading", filename);	//debug
 			get_file(filename, user, user->folder);
 		}
 		/* If neither send OK message*/
@@ -81,7 +79,7 @@ void synchronize_local(UserInfo *user) {
 		}
 	}
 	
-	printf("End of local sync (client)\n");		//debug
+	printf("\nEnd of local sync (client)\n");		//debug
 }
 
 
@@ -98,7 +96,7 @@ void synchronize_remote(UserInfo *user) {
 	struct sockaddr_in* serv_addr = user->serv_conn;
 
 
-	printf("\nStarting server sync");		//debug
+	printf("\nStarting server sync\n");		//debug
 	
 	/* Sends number of files on client */
 	number_files_client = get_dir_file_info(user->folder, localFiles);

@@ -23,11 +23,11 @@ int login_server(char *host, int port, UserInfo *user) {
 		
 	sockid = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (sockid == ERROR) {
-		printf("Error opening socket ");
+		printf("\nError opening socket ");
 		return ERROR;
 	}
 	else
-		printf("First client socket %i\n", sockid);
+		printf("\nFirst client socket %i\n", sockid);
 	
 	user->socket_id = sockid;
 
@@ -61,7 +61,7 @@ int login_server(char *host, int port, UserInfo *user) {
 
 	/* Initializes mutex to control comunication with server*/
 	if(pthread_mutex_init(&user->lock_server_comm, NULL) != 0){
-		printf("ERROR mutex init failed ");
+		printf("\nERROR mutex init failed ");
 		return ERROR;
 	}
 
@@ -76,7 +76,7 @@ void sync_client(UserInfo *user) {
 	/* verifies if user folder exists */
 	if(check_dir(user->folder) == FALSE) {
 		if(mkdir(user->folder, 0777) != 0) {
-			printf("Error creating user folder '%s'.\n", user->folder);
+			printf("\nError creating user folder '%s'.", user->folder);
 		}
 	}
 
@@ -137,7 +137,7 @@ void send_file_client(char *path, UserInfo *user) {
 		file_size = getFilesize(file);
 		if(file_size == 0) {
 			fclose(file);
-			printf("The file is empty\n");
+			printf("\nThe file is empty");
 			return;
 		}
 		
@@ -205,12 +205,12 @@ void get_file(char *filename, UserInfo *user, char *path_download) {
 	char filepath[3*MAXNAME];
 	if (strcmp(path_download, " ") == 0) {
 		sprintf(filepath, "%s/%s", user->folder, filename);
-		printf("No specified path to download file, default is on user's dir\n");
+		printf("\nNo specified path to download file, default is on user's dir");
 
 	}
 	else {
 		sprintf(filepath, "%s/%s", path_download, filename);
-		printf("Path specified is %s\n", path_download);
+		printf("\nPath specified is %s", path_download);
 	}
 	printf("File will be donwloaded in %s", filepath); //DEBUG
 	FILE* file;
@@ -308,7 +308,7 @@ void close_session(UserInfo *user) { //TODO: corrigir segmentation fault
 	//Finaliza thread do servidor
 	strcpy(buffer, END_REQ);
 	if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0)
-		printf("ERROR requesting session end");
+		printf("\nERROR requesting session end");
 
 	//Fecha o socket do cliente
 	close(user->socket_id);

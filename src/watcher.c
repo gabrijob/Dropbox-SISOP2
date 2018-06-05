@@ -46,7 +46,7 @@ void *watcher(void* user) {
 		      					pthread_mutex_lock(&(user_info->lock_server_comm));
 								printf("\nRequest upload: %s to user_%s\n", event->name, user_info->id);
 
-		      					send_file_client(path, user_info);
+		      					//send_file_client(path, user_info);
 								pthread_mutex_unlock(&(user_info->lock_server_comm));
 		    				}
 		  			} else if (event->mask & (IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
@@ -54,7 +54,7 @@ void *watcher(void* user) {
 	      						pthread_mutex_lock(&(user_info->lock_server_comm));
 								printf("\nRequest delete: %s to user_%s\n", event->name, user_info->id);
 
-	      						delete_file(event->name, user_info);
+	      						//delete_file(event->name, user_info);
 								pthread_mutex_unlock(&(user_info->lock_server_comm));
 	    					}
 		  			}

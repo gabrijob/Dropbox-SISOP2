@@ -11,7 +11,7 @@ sem_t semaphore;
 
 void list_server(int sockid, Client* client, struct sockaddr_in *cli_addr) {
 	char client_folder[3*MAXNAME];
-    	char buffer[BUFFER_SIZE];
+    char buffer[BUFFER_SIZE];
 
 	sprintf(client_folder, "%s/%s", serverInfo.folder, client->userid);
 
@@ -42,7 +42,7 @@ int remove_file(char* filename, Client *client) {
 	int ret;
 
 	char client_folder[3*MAXNAME];
-	sprintf(client_folder, "%s/%d", serverInfo.folder, atoi(client->userid));
+	sprintf(client_folder, "%s/%s", serverInfo.folder, client->userid);
 
 	sprintf(filepath, "%s/%s", client_folder, filename);
 	printf("\nRemoving file at: %s", filepath);
@@ -134,6 +134,8 @@ int new_server_port(char *address, Connection* connection) {
 }
 
 void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Client* client) {
+	char client_folder[3*MAXNAME];
+	sprintf(client_folder, "%s/%s", serverInfo.folder, client->userid);
 
 	/* UPLOAD */
 	if(strcmp(buffer, UP_REQ) == 0) {
@@ -148,11 +150,12 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 
 		char filename[MAXNAME];
 		sprintf(filename, "%s", buffer);
-		//DEBUG//
-		printf("Getting client id: ");
-		puts(client->userid);
-		//DEBUG//
 		receive_file(filename, socket, client->userid);	
+
+		/* Update files list */
+		client->n_files = get_dir_file_info(client_folder, client->files);
+		/* Marks that there are pending changes */
+		client->pending_changes = devicesOn(client);
 	} 
 	/* DOWNLOAD */
 	else if(strcmp(buffer, DOWN_REQ) == 0) {
@@ -194,8 +197,29 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 			strcpy(buffer, DEL_COMPLETE);
 
 		/* Send confirmation */
-       		if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
-            		printf("\nERROR sending deletion confirmation");	
+       	if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+        	printf("\nERROR sending deletion confirmation");
+
+		/* Update files list */
+		client->n_files = get_dir_file_info(client_folder, client->files);
+		/* Marks that there are pending changes */
+		client->pending_changes = devicesOn(client);		
+	}
+
+	/* Synchronizes client if there are pending changes */
+	if(client->pending_changes > 0) {
+		strcpy(buffer, SYNC_REQ);
+		if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+        	printf("\nERROR requesting sync from server");
+
+		sync_server(socket, client);
+		client->pending_changes = client->pending_changes - 1;
+	}
+	/* If there's not must tell client too */
+	else{
+		strcpy(buffer, SYNC_NREQ);
+		if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+			printf("\nERROR telling client to not sync");
 	}
 }
 
@@ -255,8 +279,9 @@ void* clientThread(void* connection_struct) {
 		client->n_files = get_dir_file_info(client_folder, client->files);
 		printClientFiles(client); // DEBUG
 
-		/* starts sync */
+		/* Synchronize client with server */
 		sync_server(socket, client);
+		client->pending_changes = 0;
 
 		int connected = TRUE;
 		/* Waits for commands */

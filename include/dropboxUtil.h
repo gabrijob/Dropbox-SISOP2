@@ -32,6 +32,7 @@
 #define SERVER_FOLDER "syncBox_users"
 #define SERVER_USER "server"
 
+#define MAXDEVICES 2
 #define MAXNAME 25
 #define MAXFILES 50
 #define MAXPATH MAXFILES*MAXNAME
@@ -44,6 +45,7 @@
 
 /* Communication constants */
 #define START_MSG_COUNTER 0
+
 #define END_REQ "END SESSION REQUEST"
 #define UP_REQ "FILE UPLOAD REQUEST"
 #define F_NAME_REQ "FILE NAME REQUEST"
@@ -53,6 +55,7 @@
 #define DEL_REQ "FILE DELETE REQUEST"
 #define DEL_COMPLETE "FILE DELETED"
 #define SYNC_REQ "SYNCHRONIZATION REQUEST"
+#define SYNC_NREQ "SYNCHRONIZATION NOT REQUIRED"
 
 #define S_SYNC "sync"
 #define S_GET "get"
@@ -88,12 +91,13 @@ typedef struct connection_info{
 }Connection;
 
 typedef struct client{
-	int devices[2];
+	int devices[MAXDEVICES];
 	char userid[MAXNAME];
 	int logged_in;
 	struct file_info files[MAXFILES];
 	pthread_mutex_t mutex_files[MAXFILES];
 	int n_files;
+	int pending_changes;
 }Client;
 
 typedef struct client_node{
@@ -116,22 +120,6 @@ typedef struct dir_content {
 } DirContent;
 
 
-/* Ack Structure */
-/*
-	->message_id	:	contains the id of the message, must be incremented every new message
-	->ack		:	if the ack is confirmed must be TRUE
-	->buffer	:	contains the string content of the message
-	->user		:	contains the info of who sent the message (always as client, server user is default)
-*//*
-typedef struct frame{
-    int message_id;			
-    bool ack;				
-    char buffer[BUFFER_SIZE];
-    char user[MAXNAME];
-}Frame;*/
-/* End of Ack */
-
-
 int get_dir_file_info(char * path, FileInfo files[]);
 void getFileExtension(const char *filename, char* extension);
 void *dir_content_thread(void *ptr);
@@ -143,6 +131,7 @@ time_t getTime(char *last_modified);
 int older_file(char *last_modified, char *aux);
 int newDevice(Client* client, int socket);
 int removeDevice(Client* client, int device);
+int devicesOn(Client* client);
 int fileExists(char* filename);
 int getFilesize(FILE* file);
 int getFileSize(char *path);

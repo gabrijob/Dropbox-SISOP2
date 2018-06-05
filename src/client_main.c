@@ -72,6 +72,24 @@ void get_sync_dir() {
 	sync_client(&user);
 }
 
+void answer_pending() {
+	int sockid = user.socket_id;
+	struct sockaddr_in from;
+
+	char buffer[BUFFER_SIZE];
+
+	bzero(buffer, BUFFER_SIZE);
+	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0)
+		printf("\nERROR receiving sync request from server");
+
+	if(strcmp(buffer, SYNC_REQ) == 0) {
+		printf("\nPending changes on server"); //debug
+		sync_client(&user);
+	}
+	else if(strcmp(buffer, SYNC_NREQ) == 0)
+		printf("\nNo changes on server"); //debug
+}
+
 
 void client_menu() {
 	char command_line[MAXPATH];
@@ -79,16 +97,18 @@ void client_menu() {
 	char *attribute;
 	char *attribute_download;
 	int control_thread;
-	
+
 
 	/* cria thread para manter a sincronização local */
 	if((control_thread = pthread_create(&sync_thread, NULL, watcher, (void *) &user))) {
 		printf("Syncronization Thread creation failed: %d\n", control_thread);
 	}
 
+	int is_contact_server = FALSE;
 	int exited = FALSE;
 	while(!exited){
 		printf("\nEsperando comandos...\n");
+		is_contact_server = TRUE;
 
 		if(fgets(command_line, sizeof(command_line)-1, stdin) != NULL) {
 			command_line[strcspn(command_line, "\r\n")] = 0;
@@ -122,6 +142,7 @@ void client_menu() {
 			/* LIST_CLIENT */
 			else if(strcmp(command, "list_client") == 0) {
 				list_client();
+				is_contact_server = FALSE;
 			}
 			/* GET_SYNC_DIR*/
 			else if(strcmp(command, "get_sync_dir") == 0) {
@@ -138,7 +159,13 @@ void client_menu() {
 			/* INVALID COMMAND*/
 			/*else
 				printf("\nComando invalido");*/	
-
+			
+			/* PENDING CHANGES */
+			if(is_contact_server){
+				pthread_mutex_lock(&user.lock_server_comm);
+				answer_pending();
+				pthread_mutex_unlock(&user.lock_server_comm);
+			}			
 		}
 		else
 			printf("\nFalha ao ler comando");

@@ -18,7 +18,6 @@ void synchronize_client(int sockid, Client* client_sync) {
 	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
 		printf("\nERROR receiving start message from client");	
 	
-	
 	number_files_server = client_sync->n_files;	
 
 	/* Send number of files on server */
