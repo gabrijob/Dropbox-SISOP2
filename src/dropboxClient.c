@@ -80,7 +80,7 @@ void sync_client(UserInfo *user) {
 		}
 	}
 
-	//synchronize_local(user);
+	synchronize_local(user);
 
 	//synchronize_remote(user);
 }

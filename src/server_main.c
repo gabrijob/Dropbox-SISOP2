@@ -181,12 +181,12 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 	else if(strcmp(buffer, DEL_REQ) == 0) {
 		strcpy(buffer, F_NAME_REQ);
 		/* Request filename */
-        	if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
-            		printf("\nERROR requesting file name");
+        if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+        	printf("\nERROR requesting file name");
 
-        	/* Receive filename */
-        	if(recv_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
-            		printf("\nERROR receiving file name");
+        /* Receive filename */
+        if(recv_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+        	printf("\nERROR receiving file name");
 
 		char filename[MAXNAME];
 		sprintf(filename, "%s",buffer);

@@ -9,7 +9,7 @@
 /* Used to sync server files */
 void sync_server(int sock_s, Client *client_s) {
 
-	//synchronize_client(sock_s, client_s);
+	synchronize_client(sock_s, client_s);
 
 	//synchronize_server(sock_s, client_s);
 }

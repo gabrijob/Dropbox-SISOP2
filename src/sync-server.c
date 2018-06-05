@@ -35,7 +35,7 @@ void synchronize_client(int sockid, Client* client_sync) {
 	/* Receives number of files on client */
 	bzero(buffer, BUFFER_SIZE);
 	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
-		printf("\nERROR starting sync");
+		printf("\nERROR receiving number of files from client");
 
 	int number_files_client = atoi(buffer);
 	printf("Number of files no cliente: %d\n", number_files_client); //debug
@@ -67,7 +67,7 @@ void synchronize_client(int sockid, Client* client_sync) {
 
 		    /* Sends the file's last modification */
 			if(send_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
-				printf("\nERROR starting file update procedure");
+				printf("\nERROR sending file's last modification");
 
 
 			/* Receive answer from client */
@@ -77,10 +77,10 @@ void synchronize_client(int sockid, Client* client_sync) {
 			
 			printf("Received: %s\n", buffer);
 		    if(strcmp(buffer, DOWN_REQ) == 0){ 
-		      	send_file_server(filename, sockid, atoi(client_sync->userid), &cli_addr);
+		      	send_file_server(filename, sockid, client_sync->userid, &cli_addr);
 		    }
 			if(strcmp(buffer, UP_REQ) == 0){
-				receive_file(filename, sockid, atoi(client_sync->userid));
+				receive_file(filename, sockid, client_sync->userid);
 			}
 
 		}
@@ -195,9 +195,10 @@ void synchronize_client(int sockid, Client* client_sync) {
 */
 }
 
+
 void synchronize_server(int sockid_sync, Client* client_sync) {
 
-	char buffer[BUFFER_SIZE]; // 1 KB buffer
+	/*char buffer[BUFFER_SIZE]; // 1 KB buffer
 	char path[MAXNAME * 3 + 1];
 
 	char last_modified[MAXNAME];
@@ -217,7 +218,7 @@ void synchronize_server(int sockid_sync, Client* client_sync) {
 
 	printf("\nIniciando sincronização do servidor.\n");	//debug
 
-	/* Reads number of client's files */
+	/* Reads number of client's files 
 	do {
 		status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
 		packet.ack = TRUE;
@@ -231,7 +232,7 @@ void synchronize_server(int sockid_sync, Client* client_sync) {
 
 	for(int i = 0; i < number_files_client; i++) {
 
-		/* Reads the file name from client */
+		/* Reads the file name from client 
 	    do {
 			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
 			if (status >= 0){
@@ -248,7 +249,7 @@ void synchronize_server(int sockid_sync, Client* client_sync) {
 	    strcpy(file_name, packet.buffer);
 	    printf("Nome recebido: %s\n", file_name);		//debug
 		
-		/* Reads last modified from client */
+		/* Reads last modified from client 
 		do {
 			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
 			if (status >= 0){
@@ -272,20 +273,20 @@ void synchronize_server(int sockid_sync, Client* client_sync) {
     	if((check_dir(path) == FALSE) || older_file(last_modified, last_modified_file_2) == 1) {
 
       		strcpy(packet.buffer, S_GET);
-			/* Message client to start an upload */
+			/* Message client to start an upload 
 			status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &cli_addr, sizeof(struct sockaddr_in));      		
       		if (status < 0) {
 				printf("ERROR writing to socket\n");
 			}
 
-			/* Receives request to upload from client */
+			/* Receives request to upload from client 
 			status = recvfrom(sockid, &packet, sizeof(packet), 0, (struct sockaddr *) &cli_addr, &clilen);
 	      	printf("Recebido: %s\n", packet.buffer);	//buffer
 
 	      	if(strcmp(packet.buffer, UP_REQ) == 0) {
 				packet.ack = TRUE;
 				status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) &cli_addr, sizeof(struct sockaddr_in));
-				receive_file(file_name, sockid, atoi(client_sync->userid));	
+				receive_file(file_name, sockid, client_sync->userid);	
 	      	}
 	    } else {
 	  		strcpy(packet.buffer, S_OK); packet.ack = FALSE;
@@ -301,6 +302,7 @@ void synchronize_server(int sockid_sync, Client* client_sync) {
 	}
 
 	printf("\nEncerrando sincronização do servidor.\n");		//debug
+	*/
 }
 
 #endif
