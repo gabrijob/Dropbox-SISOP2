@@ -8,14 +8,10 @@
 #include "stdlib.h"
 #include "stdio.h"
 
-/*   Global variables   */
-int ID_MSG_CLIENT = START_MSG_COUNTER;
-int ID_MSG_SERVER = START_MSG_COUNTER;
-
 
 //Start of client interface
 
-int login_server(char *host, int port, UserInfo *user) {
+int login_server(char *host, int port, UserInfo *user, MSG_ID *msg_id) {
 	int sockid;
 	char buffer[BUFFER_SIZE];
 
@@ -38,26 +34,27 @@ int login_server(char *host, int port, UserInfo *user) {
 	serv_conn.sin_addr.s_addr = inet_addr(host);
 	user->serv_conn = &serv_conn;
 	
-
+	int zero = START_MSG_COUNTER;
 	/* Sends first message to server */
 	strcpy(buffer, user->id);
-	ID_MSG_CLIENT = START_MSG_COUNTER;
-	if(send_packet(ID_MSG_CLIENT, buffer, sockid, &serv_conn) < 0) {
+	if(send_packet(&zero, buffer, sockid, &serv_conn) < 0) {
 		printf("\nERROR starting connection with server"); 
 		return ERROR;
 	}
-	ID_MSG_CLIENT++;
 
+
+	zero = START_MSG_COUNTER;
 	/* Receives new port for connection */
 	bzero(buffer, BUFFER_SIZE -1);
-	ID_MSG_SERVER = START_MSG_COUNTER;
-	if(recv_packet(ID_MSG_SERVER, buffer, sockid, &from) < 0) {
+	if(recv_packet(&zero, buffer, sockid, &from) < 0) {
 		printf("\nERROR starting connection with server"); 
 		return ERROR;
 	}
-	ID_MSG_SERVER++;
+
 
 	serv_conn.sin_port = htons(atoi(buffer)); //updates default port with port received from the server
+	msg_id->client = START_MSG_COUNTER;
+	msg_id->server = START_MSG_COUNTER;
 
 	/* Initializes mutex to control comunication with server*/
 	if(pthread_mutex_init(&user->lock_server_comm, NULL) != 0){
@@ -66,13 +63,13 @@ int login_server(char *host, int port, UserInfo *user) {
 	}
 
 	/* Sync the files from user to server */
-	sync_client(user); 
+	sync_client(user, msg_id); 
 
 	return SUCCESS;
 }
 
 
-void sync_client(UserInfo *user) {
+void sync_client(UserInfo *user, MSG_ID *msg_id) {
 	/* verifies if user folder exists */
 	if(check_dir(user->folder) == FALSE) {
 		if(mkdir(user->folder, 0777) != 0) {
@@ -80,13 +77,13 @@ void sync_client(UserInfo *user) {
 		}
 	}
 
-	synchronize_local(user);
+	synchronize_local(user, msg_id);
 
-	synchronize_remote(user);
+	synchronize_remote(user, msg_id);
 }
 
 
-void send_file_client(char *path, UserInfo *user) {
+void send_file_client(char *path, UserInfo *user, MSG_ID *msg_id) {
 	char* filename;
 	char filepath[MAXPATH];
 	int file_size;
@@ -105,7 +102,7 @@ void send_file_client(char *path, UserInfo *user) {
 	/* Sends upload request to server */
 	strcpy(buffer, UP_REQ);
 
-	if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0) {
+	if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0) {
 		printf("\nERROR sending upload request");
 		return;
 	}
@@ -114,7 +111,7 @@ void send_file_client(char *path, UserInfo *user) {
 	struct sockaddr_in from;
 
 	bzero(buffer, BUFFER_SIZE -1);
-	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0) {
+	if(recv_packet(&msg_id->server, buffer, sockid, &from) < 0) {
 		printf("\nERROR receiving file name request");
 		return;
 	}
@@ -124,7 +121,7 @@ void send_file_client(char *path, UserInfo *user) {
 		strcpy(buffer, filename);
 		printf("\nEnviando arquivo: %s\n", buffer); //DEBUG
 	
-		if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0) {
+		if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0) {
 			printf("\nERROR sending file name");
 			return;
 		}
@@ -143,7 +140,7 @@ void send_file_client(char *path, UserInfo *user) {
 		
 		sprintf(buffer, "%d", file_size);
 		/* Sends the file size to the server*/
-		if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0)
+		if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0)
 			printf("\nERROR sending file size");
 
 		/* Sends the file in BUFFER_SIZE sized parts*/
@@ -152,9 +149,10 @@ void send_file_client(char *path, UserInfo *user) {
 			fread(buffer, sizeof(char), BUFFER_SIZE, file);
 			bytes_sent += sizeof(char) * BUFFER_SIZE;
 
-			if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0)
+			if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0)
 				printf("\nERROR sending file");
-
+			
+			printf("\nMSG ID = %d", msg_id->client); //debug
 			printf("\n Sending file %s - Total: %d / Read: %d", filepath, file_size, bytes_sent); //DEBUG
 		}
 		printf("\n Finished sending file %s\n", filepath);
@@ -165,7 +163,7 @@ void send_file_client(char *path, UserInfo *user) {
 }
 
 
-void get_file(char *filename, UserInfo *user, char *path_download) {
+void get_file(char *filename, UserInfo *user, char *path_download, MSG_ID *msg_id) {
 	int file_size;
 	int bytes_received;
 
@@ -177,7 +175,7 @@ void get_file(char *filename, UserInfo *user, char *path_download) {
 	/* Sends download request to server */
 	strcpy(buffer, DOWN_REQ);
 
-	if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0) {
+	if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0) {
 		printf("\nERROR sending download request");
 		return;
 	}
@@ -186,7 +184,7 @@ void get_file(char *filename, UserInfo *user, char *path_download) {
 	struct sockaddr_in from;
 
 	bzero(buffer, BUFFER_SIZE -1);
-	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0) {
+	if(recv_packet(&msg_id->server, buffer, sockid, &from) < 0) {
 		printf("\nERROR receiving file name request");
 		return;
 	}
@@ -196,7 +194,7 @@ void get_file(char *filename, UserInfo *user, char *path_download) {
 		strcpy(buffer, filename);
 		printf("\nPedindo arquivo: %s\n", buffer); //DEBUG
 
-		if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0) {
+		if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0) {
 			printf("\nERROR sending file name");
 			return;
 		}
@@ -218,7 +216,7 @@ void get_file(char *filename, UserInfo *user, char *path_download) {
 
 	if(file) {
 		/* Receives the file size from server */
-		if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0)
+		if(recv_packet(&msg_id->server, buffer, sockid, &from) < 0)
 			printf("ERROR receiving file size from server\n");
 
 		printf("\nFile size: %s", buffer);
@@ -228,9 +226,10 @@ void get_file(char *filename, UserInfo *user, char *path_download) {
 		/* Receives the file in BUFFER_SIZE sized parts*/
 		while(file_size > bytes_received) {
 			bzero(buffer, BUFFER_SIZE);
-			if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0)
+			if(recv_packet(&msg_id->server, buffer, sockid, &from) < 0)
 				printf("ERROR receiving file from server\n");
 
+			printf("\nMSG ID = %d", msg_id->server); //debug
 			if((file_size - bytes_received) > BUFFER_SIZE) {
 				fwrite(buffer, sizeof(char), BUFFER_SIZE, file);
 				bytes_received += sizeof(char) * BUFFER_SIZE; 
@@ -249,7 +248,7 @@ void get_file(char *filename, UserInfo *user, char *path_download) {
 }
 
 
-void delete_file(char *filename, UserInfo *user) {
+void delete_file(char *filename, UserInfo *user, MSG_ID *msg_id) {
 	int sockid = user->socket_id;
 	struct sockaddr_in *serv_conn = user->serv_conn;
 
@@ -258,7 +257,7 @@ void delete_file(char *filename, UserInfo *user) {
 	//Send delete request to server
 	strcpy(buffer, DEL_REQ);
 
-	if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0) {
+	if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0) {
 		printf("\n ERROR sending delete request");
 		return;
 	}
@@ -266,7 +265,7 @@ void delete_file(char *filename, UserInfo *user) {
 	//Receive ack from server 
 	struct sockaddr_in from;
 	bzero(buffer, BUFFER_SIZE -1);
-	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0) {
+	if(recv_packet(&msg_id->server, buffer, sockid, &from) < 0) {
 		printf("\nERROR receiving file name request");
 		return;
 	}
@@ -277,7 +276,7 @@ void delete_file(char *filename, UserInfo *user) {
 		strcpy(buffer, filename);
 		printf("\nDeletando arquivo: %s", buffer); //DEBUG
 
-		if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0) {
+		if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0) {
 			printf("\nERROR sending file name");
 			return;
 		}
@@ -285,7 +284,7 @@ void delete_file(char *filename, UserInfo *user) {
 
 	//Recebe confirmação do servidor
 	bzero(buffer, BUFFER_SIZE -1);
-	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0) {
+	if(recv_packet(&msg_id->server, buffer, sockid, &from) < 0) {
 		printf("\nERROR receiving delete confirmation");
 		return;
 	}
@@ -295,7 +294,7 @@ void delete_file(char *filename, UserInfo *user) {
 }
 
 
-void close_session(UserInfo *user) { //TODO: corrigir segmentation fault 
+void close_session(UserInfo *user, MSG_ID *msg_id) { //TODO: corrigir segmentation fault 
 
 	char buffer[BUFFER_SIZE];
 
@@ -307,7 +306,7 @@ void close_session(UserInfo *user) { //TODO: corrigir segmentation fault
 
 	//Finaliza thread do servidor
 	strcpy(buffer, END_REQ);
-	if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0)
+	if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0)
 		printf("\nERROR requesting session end");
 
 	//Fecha o socket do cliente

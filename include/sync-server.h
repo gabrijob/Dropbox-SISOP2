@@ -3,7 +3,7 @@
 
 #include "dropboxServer.h"
 
-void synchronize_client(int sockid, Client* client_sync);
-void synchronize_server(int sockid, Client* client_sync);
+void synchronize_client(int sockid, Client* client_sync, MSG_ID* msg_id);
+void synchronize_server(int sockid, Client* client_sync, MSG_ID* msg_id);
 
 #endif

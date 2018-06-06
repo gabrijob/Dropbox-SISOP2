@@ -9,7 +9,7 @@ ServerInfo serverInfo;
 sem_t semaphore;
 
 
-void list_server(int sockid, Client* client, struct sockaddr_in *cli_addr) {
+void list_server(int sockid, Client* client, struct sockaddr_in *cli_addr, MSG_ID *msg_id) {
 	char client_folder[3*MAXNAME];
     char buffer[BUFFER_SIZE];
 
@@ -23,7 +23,7 @@ void list_server(int sockid, Client* client, struct sockaddr_in *cli_addr) {
 	printf("\nNumber files: %d\n", atoi(buffer)); // debug
 
 	/* Send number of files to client */
-    if(send_packet(START_MSG_COUNTER, buffer, sockid, cli_addr) < 0) {
+    if(send_packet(&msg_id->server, buffer, sockid, cli_addr) < 0) {
         printf("\nERROR sending number of files to client");
     }
 
@@ -31,7 +31,7 @@ void list_server(int sockid, Client* client, struct sockaddr_in *cli_addr) {
 	for(int i = 0; i < client->n_files; i++) {
 		sprintf(buffer, "%s \t- Modification Time: %s", client->files[i].name, client->files[i].last_modified);
 		
-        if(send_packet(START_MSG_COUNTER, buffer, sockid, cli_addr) < 0) {
+        if(send_packet(&msg_id->server, buffer, sockid, cli_addr) < 0) {
             printf("\nERROR sending file data to client");
         }
     }
@@ -133,7 +133,7 @@ int new_server_port(char *address, Connection* connection) {
 	return SUCCESS;	
 }
 
-void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Client* client) {
+void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Client* client, MSG_ID* msg_id) {
 	char client_folder[3*MAXNAME];
 	sprintf(client_folder, "%s/%s", serverInfo.folder, client->userid);
 
@@ -141,16 +141,16 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 	if(strcmp(buffer, UP_REQ) == 0) {
 		strcpy(buffer, F_NAME_REQ);
 		/* Request filename */
-        if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+        if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
         	printf("\nERROR requesting file name");
         
         /* Receive filename */
-        if(recv_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+        if(recv_packet(&msg_id->client, buffer, socket, cli_addr) < 0)
         	printf("\nERROR receiving file name");
 
 		char filename[MAXNAME];
 		sprintf(filename, "%s", buffer);
-		receive_file(filename, socket, client->userid);	
+		receive_file(filename, socket, client->userid, msg_id);	
 
 		/* Update files list */
 		client->n_files = get_dir_file_info(client_folder, client->files);
@@ -161,34 +161,34 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 	else if(strcmp(buffer, DOWN_REQ) == 0) {
 		strcpy(buffer, F_NAME_REQ);
 		/* Request filename */
-        if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+        if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
         	printf("\nERROR requesting file name");
-       
+        
         /* Receive filename */
-        if(recv_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+        if(recv_packet(&msg_id->client, buffer, socket, cli_addr) < 0)
         	printf("\nERROR receiving file name");
         
 		char filename[MAXNAME];
 		sprintf(filename, "%s", buffer);
-		send_file_server(filename, socket, client->userid, cli_addr);		
+		send_file_server(filename, socket, client->userid, cli_addr, msg_id);		
 	}
 	/* LIST_SERVER */
 	else if(strcmp(buffer, LIST_S_REQ) == 0) {
-		list_server(socket, client, cli_addr);
+		list_server(socket, client, cli_addr, msg_id);
 	}
 	/* GET_SYNC_DIR */
 	else if(strcmp(buffer, SYNC_REQ) == 0) {
-		sync_server(socket, client);
+		sync_server(socket, client, msg_id);
 	}
 	/* DELETE */
 	else if(strcmp(buffer, DEL_REQ) == 0) {
 		strcpy(buffer, F_NAME_REQ);
 		/* Request filename */
-        if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+        if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
         	printf("\nERROR requesting file name");
 
         /* Receive filename */
-        if(recv_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+        if(recv_packet(&msg_id->client, buffer, socket, cli_addr) < 0)
         	printf("\nERROR receiving file name");
 
 		char filename[MAXNAME];
@@ -197,7 +197,7 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 			strcpy(buffer, DEL_COMPLETE);
 
 		/* Send confirmation */
-       	if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+       	if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
         	printf("\nERROR sending deletion confirmation");
 
 		/* Update files list */
@@ -209,16 +209,16 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 	/* Synchronizes client if there are pending changes */
 	if(client->pending_changes > 0) {
 		strcpy(buffer, SYNC_REQ);
-		if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+		if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
         	printf("\nERROR requesting sync from server");
 
-		sync_server(socket, client);
+		sync_server(socket, client, msg_id);
 		client->pending_changes = client->pending_changes - 1;
 	}
 	/* If there's not must tell client too */
 	else{
 		strcpy(buffer, SYNC_NREQ);
-		if(send_packet(START_MSG_COUNTER, buffer, socket, cli_addr) < 0)
+		if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
 			printf("\nERROR telling client to not sync");
 	}
 }
@@ -228,11 +228,12 @@ void* clientThread(void* connection_struct) {
 	puts("Reached control thread");
 	struct sockaddr_in cli_addr;		
 
-    	char buffer[BUFFER_SIZE];
+    char buffer[BUFFER_SIZE];
 	int socket;
 	char client_id[MAXNAME];
 	//char *client_ip;
 	int device = 0;
+
 	
 	Connection *connection = (Connection*) malloc(sizeof(Connection));
 	Client *client = (Client*) malloc(sizeof(Client));
@@ -279,8 +280,12 @@ void* clientThread(void* connection_struct) {
 		client->n_files = get_dir_file_info(client_folder, client->files);
 		printClientFiles(client); // DEBUG
 
+
+		MSG_ID msg_id;
+		msg_id.server = START_MSG_COUNTER;
+		msg_id.client = START_MSG_COUNTER;
 		/* Synchronize client with server */
-		sync_server(socket, client);
+		sync_server(socket, client, &msg_id);
 		client->pending_changes = 0;
 
 		int connected = TRUE;
@@ -289,7 +294,7 @@ void* clientThread(void* connection_struct) {
 			printf("\nWaiting for commands from client-%s at port-%d/socket-%d\n", client_id, connection->port, socket); //DEBUG
 			bzero(buffer, BUFFER_SIZE -1);
           
-            		if(recv_packet(START_MSG_COUNTER, buffer, socket, &cli_addr) < 0) {
+            		if(recv_packet(&msg_id.client, buffer, socket, &cli_addr) < 0) {
                 		printf("\nERROR receiving command");
             		}
 			if(strcmp(buffer, END_REQ) == 0) {
@@ -298,7 +303,7 @@ void* clientThread(void* connection_struct) {
 			}
 			else {
 				//printf("\nComando recebido: %s", buffer);
-				select_commands(buffer, &cli_addr, socket, client);
+				select_commands(buffer, &cli_addr, socket, client, &msg_id);
 			}
 		}
 
@@ -318,6 +323,7 @@ void* clientThread(void* connection_struct) {
 void wait_connection(char* address, int sockid) {
 
 	char *client_ip;
+	int zero;
 		 
 	/* Identifier for the thread that will controll maixmum accesses */
 	pthread_t thread_id;
@@ -329,7 +335,8 @@ void wait_connection(char* address, int sockid) {
 	
 		char buffer[BUFFER_SIZE];
 		bzero(buffer, BUFFER_SIZE -1);
-		if(recv_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) == 0)
+		zero = START_MSG_COUNTER;
+		if(recv_packet(&zero, buffer, sockid, &cli_addr) == 0)
 			printf("Received a datagram from: %s\n", buffer);
 
 		/* Updates semaphore when a new connection starts */		
@@ -349,7 +356,8 @@ void wait_connection(char* address, int sockid) {
 			/*Sends new port to client*/
 			sprintf(buffer, "%d", connection->port);
 			strcpy(connection->buffer, buffer);
-			if(send_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+			zero = START_MSG_COUNTER;
+			if(send_packet(&zero, buffer, sockid, &cli_addr) < 0)
 				printf("\nERROR sending new port to client");
 
 			/* Creates thread to control clients access to server */

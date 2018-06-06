@@ -5,7 +5,7 @@
 #include "sync-client.h"
 
 
-void synchronize_local(UserInfo *user) {
+void synchronize_local(UserInfo *user, MSG_ID *msg_id) {
 
 	char path[MAXPATH];
 	char filename[MAXNAME];
@@ -24,13 +24,13 @@ void synchronize_local(UserInfo *user) {
 	
 	/* Send start sync message */
 	strcpy(buffer, S_SYNC);
-	if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_addr) < 0)
+	if(send_packet(&msg_id->client, buffer, sockid, serv_addr) < 0)
 		printf("\nERROR sending message to start sync");
 
 
 	/* Receives number of files on server */
 	bzero(buffer, BUFFER_SIZE);	
-	if(recv_packet(START_MSG_COUNTER, buffer, sockid, serv_addr) < 0)
+	if(recv_packet(&msg_id->server, buffer, sockid, serv_addr) < 0)
 		printf("\nERROR receiving number of files at server");
 
 	number_files_server = atoi(buffer);
@@ -42,7 +42,7 @@ void synchronize_local(UserInfo *user) {
 
 		/* Receive file name */
 		bzero(buffer, BUFFER_SIZE);	
-		if(recv_packet(START_MSG_COUNTER, buffer, sockid, serv_addr) < 0)
+		if(recv_packet(&msg_id->server, buffer, sockid, serv_addr) < 0)
 			printf("\nERROR receiving file name");
 
 		strcpy(filename, buffer);
@@ -51,7 +51,7 @@ void synchronize_local(UserInfo *user) {
 
 		/* Receive file's last modification at server */
 		bzero(buffer, BUFFER_SIZE);
-		if(recv_packet(START_MSG_COUNTER, buffer, sockid, serv_addr) < 0)
+		if(recv_packet(&msg_id->server, buffer, sockid, serv_addr) < 0)
 			printf("\nERROR receiving file's last modification");
 
 		strcpy(last_modified_server, buffer);
@@ -65,16 +65,16 @@ void synchronize_local(UserInfo *user) {
 		/* Asks for file if it's older or doesn't exist */
 		if(check_dir(path) == FALSE) {;					
 			printf("\nFile %s does not exist... downloading", filename);	//debug
-			get_file(filename, user, user->folder);
+			get_file(filename, user, user->folder, msg_id);
 		}
 		else if (older_file(last_modified_server, last_modified_client) == 0) {
 			printf("\nFile %s older... downloading", filename);	//debug
-			get_file(filename, user, user->folder);
+			get_file(filename, user, user->folder, msg_id);
 		}
 		/* If neither send OK message*/
 		else {
 			strcpy(buffer, S_OK);
-			if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_addr) < 0)
+			if(send_packet(&msg_id->client, buffer, sockid, serv_addr) < 0)
 				printf("\nERROR sending OK message");
 		}
 	}
@@ -83,7 +83,7 @@ void synchronize_local(UserInfo *user) {
 }
 
 
-void synchronize_remote(UserInfo *user) {
+void synchronize_remote(UserInfo *user, MSG_ID *msg_id) {
 
 	FileInfo localFiles[MAXFILES];
 	char path[MAXPATH];
@@ -102,7 +102,7 @@ void synchronize_remote(UserInfo *user) {
 	number_files_client = get_dir_file_info(user->folder, localFiles);
 	sprintf(buffer, "%d", number_files_client);
 	
-	if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_addr) < 0)
+	if(send_packet(&msg_id->client, buffer, sockid, serv_addr) < 0)
 		printf("\nERROR sending number of files");
 
 
@@ -114,7 +114,7 @@ void synchronize_remote(UserInfo *user) {
 		strcpy(buffer, localFiles[i].name);
 		printf("\nName sent: %s", buffer);	//debug
 
-		if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_addr) < 0)
+		if(send_packet(&msg_id->client, buffer, sockid, serv_addr) < 0)
 			printf("\nERROR sending file name");
 
 
@@ -122,20 +122,20 @@ void synchronize_remote(UserInfo *user) {
 		strcpy(buffer, localFiles[i].last_modified);
 		printf("\nLast modified: %s", buffer);	//debug
 
-		if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_addr) < 0)
+		if(send_packet(&msg_id->client, buffer, sockid, serv_addr) < 0)
 			printf("\nERROR sending last modified");
 
 
 		/* Receive update or deletion request from server */
 		bzero(buffer, BUFFER_SIZE);
-		if(recv_packet(START_MSG_COUNTER, buffer, sockid, serv_addr) < 0)
+		if(recv_packet(&msg_id->server, buffer, sockid, serv_addr) < 0)
 			printf("\nERROR receiving request from server");
 
 		printf("\nReceived: %s", buffer);	//debug
 
 		/* Send file */
 		if(strcmp(buffer, S_GET) == 0) {
-			send_file_client(path, user);
+			send_file_client(path, user, msg_id);
 		}
 		/* Delete file */
 		else if(strcmp(buffer, DEL_REQ) == 0) {
@@ -156,7 +156,7 @@ void synchronize_remote(UserInfo *user) {
 				strcpy(buffer, DEL_COMPLETE);
 
 			/* Send delete confirmation to server */
-			if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_addr) < 0)
+			if(send_packet(&msg_id->client, buffer, sockid, serv_addr) < 0)
 			printf("\nERROR sending delete confimation");
 		}
 

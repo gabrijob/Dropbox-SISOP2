@@ -4,7 +4,7 @@
 #include "sync-server.h"
 
 
-void synchronize_client(int sockid, Client* client_sync) { 
+void synchronize_client(int sockid, Client* client_sync, MSG_ID* msg_id) { 
 
 	char buffer[BUFFER_SIZE];	
 	int number_files_server;
@@ -15,7 +15,7 @@ void synchronize_client(int sockid, Client* client_sync) {
 
 	/* Receive answer from client */
 	bzero(buffer, BUFFER_SIZE);
-	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+	if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
 		printf("\nERROR receiving start message from client");	
 	
 	number_files_server = client_sync->n_files;	
@@ -23,7 +23,7 @@ void synchronize_client(int sockid, Client* client_sync) {
 	/* Send number of files on server */
 	sprintf(buffer, "%d", number_files_server);
 	printf("\nClient number of files: %s.", buffer);	//debug
-	if(send_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+	if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
 		printf("\nERROR sending number of files");
 	
 
@@ -32,20 +32,20 @@ void synchronize_client(int sockid, Client* client_sync) {
 		/* Send file name */
 		strcpy(buffer, client_sync->files[i].name);
 		printf("\nNome do arquivo a enviar: %s", buffer);	//debug		
-		if(send_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+		if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
 			printf("\nERROR sending file name");
 		
-		
+
 		/* Sends the file's last modification */
 		strcpy(buffer, client_sync->files[i].last_modified);
 		printf("\nLast modified: %s", buffer);	//debug
-		if(send_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+		if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
 			printf("\nERROR sending file's last_modification");
 
 
 		/* Receive answer from client */
 		bzero(buffer, BUFFER_SIZE);
-		if(recv_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+		if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
 			printf("\nERROR receiving answer from client");	
 
 		printf("\nReceived: %s", buffer);
@@ -53,16 +53,17 @@ void synchronize_client(int sockid, Client* client_sync) {
 		if(strcmp(buffer, DOWN_REQ) == 0){
 			/* Tell client that file name is not required */
 			strcpy(buffer, F_NAME_NREQ);
-			if(send_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+			if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
 				printf("\nERROR sending file's last_modification"); 
-		   	send_file_server(client_sync->files[i].name, sockid, client_sync->userid, &cli_addr);
+
+		   	send_file_server(client_sync->files[i].name, sockid, client_sync->userid, &cli_addr, msg_id);
 		}
 	}	
 	printf("\nEncerrando sincronização do cliente.\n");		
 }
 
 
-void synchronize_server(int sockid, Client* client_sync) {
+void synchronize_server(int sockid, Client* client_sync, MSG_ID* msg_id) {
 
 	char buffer[BUFFER_SIZE];
 	char filename[MAXNAME];
@@ -77,7 +78,7 @@ void synchronize_server(int sockid, Client* client_sync) {
 
 	/* Receives number of files on client */
 	bzero(buffer, BUFFER_SIZE);
-	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+	if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
 		printf("\nERROR receiving number of files from client");
 
 	int number_files_client = atoi(buffer);
@@ -87,7 +88,7 @@ void synchronize_server(int sockid, Client* client_sync) {
 	for(int i = 0; i < number_files_client; i++) {
 		/* Receive file name */
 		bzero(buffer, BUFFER_SIZE);
-		if(recv_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+		if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
 			printf("\nERROR receiving file name");
 		
 		strcpy(filename, buffer);
@@ -96,7 +97,7 @@ void synchronize_server(int sockid, Client* client_sync) {
 
 		/* Receive last modified at client */
 		bzero(buffer, BUFFER_SIZE);
-		if(recv_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+		if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
 			printf("\nERROR receiving last modified at client");
 
 		printf("\nLast modified recebido: %s", buffer);
@@ -110,13 +111,13 @@ void synchronize_server(int sockid, Client* client_sync) {
 		if(check_dir(filepath) == FALSE) {
 			/* Send delete request to client */
 			strcpy(buffer, DEL_REQ);
-			if(send_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+			if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
 				printf("\nERROR requesting file deletion");
 
 
 			/* Receive delete confirmation from client */
 			bzero(buffer, BUFFER_SIZE);
-			if(recv_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+			if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
 				printf("\nERROR receiving delete confirmation");
 
 			if(strcmp(buffer, DEL_COMPLETE) == 0)
@@ -125,30 +126,31 @@ void synchronize_server(int sockid, Client* client_sync) {
 		else if(older_file(last_modified_client, last_modified_server) == 1) {
 			/* Message client to start an upload */
 			strcpy(buffer, S_GET);
-			if(send_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+			if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
 				printf("\nERROR requesting file from client");
 
 
 			/* Receives request to upload from client  */
 			bzero(buffer, BUFFER_SIZE);
-			if(recv_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+			if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
 				printf("\nERROR receiving upload request from client");
 			
+
 			printf("\nRecebido: %s", buffer);	//buffer
 			/* Uploads file */
 			if(strcmp(buffer, UP_REQ) == 0) {
 				/* Tell client that file name is not required */
 				strcpy(buffer, F_NAME_NREQ);
-				if(send_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+				if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
 					printf("\nERROR sending file's last_modification");
 
-				receive_file(filename, sockid, client_sync->userid);
+				receive_file(filename, sockid, client_sync->userid, msg_id);
 			}
 		}
 		/* If neither send OK message*/
 		else {
 			strcpy(buffer, S_OK);
-			if(send_packet(START_MSG_COUNTER, buffer, sockid, &cli_addr) < 0)
+			if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
 				printf("\nERROR sending OK message");
 		}
 	}

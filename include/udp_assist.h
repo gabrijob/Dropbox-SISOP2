@@ -38,9 +38,9 @@ typedef struct frame{
 /* End of Ack */
 
 
-int send_packet(int msgid, char *buffer, int sockid, struct sockaddr_in *to);
+int send_packet(int *msgid, char *buffer, int sockid, struct sockaddr_in *to);
 
-int recv_packet(int msgid, char *buffer, int sockid, struct sockaddr_in *from);
+int recv_packet(int *msgid, char *buffer, int sockid, struct sockaddr_in *from);
 
 
 

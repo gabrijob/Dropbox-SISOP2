@@ -6,17 +6,17 @@
 #include "watcher.h"
 
 
-int login_server(char *host, int port, UserInfo *user);
+int login_server(char *host, int port, UserInfo *user, MSG_ID *msg_id);
 
-void sync_client(UserInfo *user);
+void sync_client(UserInfo *user, MSG_ID *msg_id);
 
-void send_file_client(char *path, UserInfo *user);
+void send_file_client(char *path, UserInfo *user, MSG_ID *msg_id);
 
-void get_file(char *filename, UserInfo *user, char *path_download);
+void get_file(char *filename, UserInfo *user, char *path_download, MSG_ID *msg_id);
 
-void delete_file(char *filename, UserInfo *user);
+void delete_file(char *filename, UserInfo *user, MSG_ID *msg_id);
 
-void close_session(UserInfo *user);
+void close_session(UserInfo *user, MSG_ID *msg_id);
 
 
 #endif

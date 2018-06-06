@@ -100,6 +100,11 @@ typedef struct client{
 	int pending_changes;
 }Client;
 
+typedef struct msg_id{
+	int server;
+	int client;
+}MSG_ID;
+
 typedef struct client_node{
 	Client* client;
 	struct client_node* next;

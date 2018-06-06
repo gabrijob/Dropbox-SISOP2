@@ -6,6 +6,7 @@
 /*   Global variables   */
 UserInfo user;
 pthread_t sync_thread;
+MSG_ID msg_id;
 
 
 void list_server() {
@@ -21,7 +22,7 @@ void list_server() {
 
 	/* Request List Server */
 	strcpy(buffer, LIST_S_REQ);
-	if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0) {
+	if(send_packet(&msg_id.client, buffer, sockid, serv_conn) < 0) {
 		printf("ERROR sending list server request\n");
 		return;
 	}
@@ -30,7 +31,7 @@ void list_server() {
 	/* Receive ack and number of files from server*/
 	struct sockaddr_in from;
 	bzero(buffer, BUFFER_SIZE -1);
-	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0) {
+	if(recv_packet(&msg_id.server, buffer, sockid, &from) < 0) {
 		printf("ERROR receiving number of files at server\n");
 		return;
 	}
@@ -40,7 +41,7 @@ void list_server() {
 	for(int i = 0; i < number_files; i++) {
 
 		bzero(buffer, BUFFER_SIZE -1);
-		if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0) {
+		if(recv_packet(&msg_id.server, buffer, sockid, &from) < 0) {
 			printf("ERROR receiving file data from server\n");
 			return;
 		}
@@ -66,10 +67,10 @@ void get_sync_dir() {
 
 	/* Send synchronization request to server */
 	strcpy(buffer, SYNC_REQ);
-	if(send_packet(START_MSG_COUNTER, buffer, sockid, serv_conn) < 0)
+	if(send_packet(&msg_id.client, buffer, sockid, serv_conn) < 0)
 		printf("\nERROR sending synchronization request");
 
-	sync_client(&user);
+	sync_client(&user, &msg_id);
 }
 
 void answer_pending() {
@@ -79,12 +80,12 @@ void answer_pending() {
 	char buffer[BUFFER_SIZE];
 
 	bzero(buffer, BUFFER_SIZE);
-	if(recv_packet(START_MSG_COUNTER, buffer, sockid, &from) < 0)
+	if(recv_packet(&msg_id.server, buffer, sockid, &from) < 0)
 		printf("\nERROR receiving sync request from server");
 
 	if(strcmp(buffer, SYNC_REQ) == 0) {
 		printf("\nPending changes on server"); //debug
-		sync_client(&user);
+		sync_client(&user, &msg_id);
 	}
 	else if(strcmp(buffer, SYNC_NREQ) == 0)
 		printf("\nNo changes on server"); //debug
@@ -124,13 +125,13 @@ void client_menu() {
 			/* UPLOAD */
 			if(strcmp(command, "upload") == 0) {
 				pthread_mutex_lock(&user.lock_server_comm);
-				send_file_client(attribute, &user);
+				send_file_client(attribute, &user, &msg_id);
 				pthread_mutex_unlock(&user.lock_server_comm);
 			}
 			/* DOWNLOAD */
 			else if(strcmp(command, "download") == 0) {
 				pthread_mutex_lock(&user.lock_server_comm);
-				get_file(attribute, &user, attribute_download);
+				get_file(attribute, &user, attribute_download, &msg_id);
 				pthread_mutex_unlock(&user.lock_server_comm);
 			}
 			/* LIST_SERVER */
@@ -153,7 +154,7 @@ void client_menu() {
 			/* DELETE */
 			else if(strcmp(command, "delete") == 0) {
 				pthread_mutex_lock(&user.lock_server_comm);
-				delete_file(attribute, &user);
+				delete_file(attribute, &user, &msg_id);
 				pthread_mutex_unlock(&user.lock_server_comm);
 			}
 			/* INVALID COMMAND*/
@@ -173,7 +174,7 @@ void client_menu() {
     //Fecha a thread de sincronizacao
 	pthread_cancel(sync_thread);
 
-	close_session(&user);
+	close_session(&user, &msg_id);
 }
 
 
@@ -215,7 +216,7 @@ int main(int argc, char *argv[]) {
 
 	/* Starts communication with the server
 	        -> Opens a socket UDP */
-	sockid = login_server(address, port, &user); 
+	sockid = login_server(address, port, &user, &msg_id); 
 
 	if (sockid == SUCCESS) {	
 		/* Display client interface */

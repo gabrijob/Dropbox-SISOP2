@@ -4,7 +4,7 @@
 #include "udp_assist.h"
 
 
-int send_packet(int msgid, char *buffer, int sockid, struct sockaddr_in *to){
+int send_packet(int *msgid, char *buffer, int sockid, struct sockaddr_in *to){
     Frame packet;
     int status = 0;
 
@@ -12,7 +12,7 @@ int send_packet(int msgid, char *buffer, int sockid, struct sockaddr_in *to){
 
     strncpy(packet.buffer, buffer, BUFFER_SIZE);
     packet.ack = FALSE;
-    packet.message_id = msgid;
+    packet.message_id = *msgid;
 
     while(packet.ack != TRUE) {
 	   	status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) to, sizeof(struct sockaddr_in));
@@ -28,11 +28,12 @@ int send_packet(int msgid, char *buffer, int sockid, struct sockaddr_in *to){
 	    }
 	}
 
-   return 0;
+    *msgid = *msgid + 1;
+    return 0;
 }
 
 
-int recv_packet(int msgid, char *buffer, int sockid, struct sockaddr_in *from){
+int recv_packet(int *msgid, char *buffer, int sockid, struct sockaddr_in *from){
     Frame packet;
     int status = 0;
 		
@@ -45,7 +46,7 @@ int recv_packet(int msgid, char *buffer, int sockid, struct sockaddr_in *from){
             return -1;
 	    }
         /* Check if it's the awaited message*/
-        if(packet.message_id == msgid)
+        if(packet.message_id == *msgid)
             packet.ack = TRUE;
         
 		status = sendto(sockid, &packet, sizeof(packet), 0, (const struct sockaddr *) from, sizeof(struct sockaddr_in));
@@ -56,6 +57,7 @@ int recv_packet(int msgid, char *buffer, int sockid, struct sockaddr_in *from){
 
 	}while (packet.ack != TRUE );
 
+    *msgid = *msgid + 1;
     strncpy(buffer, packet.buffer, BUFFER_SIZE);
     return 0;
 }
