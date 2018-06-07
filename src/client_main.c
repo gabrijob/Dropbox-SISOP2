@@ -6,6 +6,7 @@
 /*   Global variables   */
 UserInfo user;
 pthread_t sync_thread;
+//pthread_t another_sync_thread;
 MSG_ID msg_id;
 
 
@@ -79,6 +80,7 @@ void answer_pending() {
 
 	char buffer[BUFFER_SIZE];
 
+			
 	bzero(buffer, BUFFER_SIZE);
 	if(recv_packet(&msg_id.server, buffer, sockid, &from) < 0)
 		printf("\nERROR receiving sync request from server");
@@ -89,6 +91,7 @@ void answer_pending() {
 	}
 	else if(strcmp(buffer, SYNC_NREQ) == 0)
 		printf("\nNo changes on server"); //debug
+
 }
 
 
@@ -98,28 +101,25 @@ void client_menu() {
 	char *attribute;
 	char *attribute_download;
 	int control_thread;
-
+	//int another_thread;
 
 	/* cria thread para manter a sincronização local */
 	if((control_thread = pthread_create(&sync_thread, NULL, watcher, (void *) &user))) {
 		printf("Syncronization Thread creation failed: %d\n", control_thread);
 	}
 
+	/*if((another_thread = pthread_create(&another_sync_thread, NULL, answer_pending, NULL))) {
+		printf("Syncronization Thread 2 creation failed: %d\n", another_thread);
+	}*/
+
 	int is_contact_server = FALSE;
 	int exited = FALSE;
 	while(!exited){
-
-		/* CHECK FOR PENDING CHANGES */
-		if(is_contact_server){
-			pthread_mutex_lock(&user.lock_server_comm);
-			answer_pending();
-			pthread_mutex_unlock(&user.lock_server_comm);
-		}
 		
 		printf("\nEsperando comandos...\n");
 		is_contact_server = TRUE;
 
-		if(fgets(command_line, sizeof(command_line)-1, stdin) != NULL) {
+		if(fgets(command_line, sizeof(command_line), stdin) != NULL) {
 			command_line[strcspn(command_line, "\r\n")] = 0;
 
 			if (strcmp(command_line, "exit") == 0) 
@@ -166,14 +166,23 @@ void client_menu() {
 				pthread_mutex_unlock(&user.lock_server_comm);
 			}
 			/* INVALID COMMAND*/
-			/*else
-				printf("\nComando invalido");*/		
+			else {
+				is_contact_server = FALSE;
+			}	
+
+			/* CHECK FOR PENDING CHANGES */
+			if(is_contact_server) {
+				pthread_mutex_lock(&user.lock_server_comm);
+				answer_pending();
+				pthread_mutex_unlock(&user.lock_server_comm);
+			}
 		}
 		else
 			printf("\nFalha ao ler comando");
 	}
     //Fecha a thread de sincronizacao
 	pthread_cancel(sync_thread);
+	printf("\nSync thread killed");  //debug
 
 	close_session(&user, &msg_id);
 }

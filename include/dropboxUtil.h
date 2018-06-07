@@ -46,6 +46,7 @@
 /* Communication constants */
 #define START_MSG_COUNTER 0
 
+#define NO_COMMAND "NO COMMAND REQUESTED"
 #define END_REQ "END SESSION REQUEST"
 #define UP_REQ "FILE UPLOAD REQUEST"
 #define F_NAME_REQ "FILE NAME REQUEST"
@@ -88,6 +89,7 @@ typedef struct connection_info{
 	char* ip;
 	char buffer[BUFFER_SIZE];
 	int port;
+	struct sockaddr_in *client_address;
 }Connection;
 
 typedef struct client{

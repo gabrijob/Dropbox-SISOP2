@@ -205,12 +205,28 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 		/* Marks that there are pending changes */
 		client->pending_changes = devicesOn(client);		
 	}
+	/* Synchronizes client if there are pending changes */
+	if(client->pending_changes > 0) {
+		strcpy(buffer, SYNC_REQ);
+		if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
+		printf("\nERROR requesting sync from server");
+
+		sync_server(socket, client, msg_id);
+		client->pending_changes = client->pending_changes - 1;
+	}
+	/* If there's not must tell client too */
+	else{
+		strcpy(buffer, SYNC_NREQ);
+		if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
+			printf("\nERROR telling client to not sync");
+	}
+
 }
 
 void* clientThread(void* connection_struct) {
 
 	puts("Reached control thread");
-	struct sockaddr_in cli_addr;		
+	struct sockaddr_in *cli_addr;		
 
     char buffer[BUFFER_SIZE];
 	int socket;
@@ -226,6 +242,7 @@ void* clientThread(void* connection_struct) {
 	
 	connection = (Connection*) connection_struct;
 	socket = connection->socket_id;
+	cli_addr = connection->client_address;
 	//client_ip = connection->ip;
 	strncpy(client_id, connection->client_id, MAXNAME);
 	client_id[MAXNAME - 1] = '\0';
@@ -275,19 +292,19 @@ void* clientThread(void* connection_struct) {
 		int connected = TRUE;
 		/* Waits for commands */
 		while(connected == TRUE) {
-			/* Synchronizes client if there are pending changes */
+			/* Synchronizes client if there are pending changes 
 			if(client->pending_changes > 0) {
 				strcpy(buffer, SYNC_REQ);
-				if(send_packet(&msg_id.server, buffer, socket, &cli_addr) < 0)
+				if(send_packet(&msg_id.server, buffer, socket, cli_addr) < 0)
 				printf("\nERROR requesting sync from server");
 
 				sync_server(socket, client, &msg_id);
 				client->pending_changes = client->pending_changes - 1;
 			}
-			/* If there's not must tell client too */
+			/* If there's not must tell client too 
 			else{
 				strcpy(buffer, SYNC_NREQ);
-				if(send_packet(&msg_id.server, buffer, socket, &cli_addr) < 0)
+				if(send_packet(&msg_id.server, buffer, socket, cli_addr) < 0)
 					printf("\nERROR telling client to not sync");
 			}
 
@@ -295,7 +312,7 @@ void* clientThread(void* connection_struct) {
 			printf("\nWaiting for commands from client-%s at port-%d/socket-%d\n", client_id, connection->port, socket); //DEBUG
 			bzero(buffer, BUFFER_SIZE -1);
           					
-            		if(recv_packet(&msg_id.client, buffer, socket, &cli_addr) < 0) {
+            		if(recv_packet(&msg_id.client, buffer, socket, cli_addr) < 0) {
                 		printf("\nERROR receiving command");
             		}
 			if(strcmp(buffer, END_REQ) == 0) {
@@ -304,7 +321,7 @@ void* clientThread(void* connection_struct) {
 			}
 			else {
 				//printf("\nComando recebido: %s", buffer);
-				select_commands(buffer, &cli_addr, socket, client, &msg_id);
+				select_commands(buffer, cli_addr, socket, client, &msg_id);
 			}
 		}
 
@@ -344,10 +361,11 @@ void wait_connection(char* address, int sockid) {
 		sem_wait(&semaphore);
 		
 		/* inet_ntoa converts the network address into a string */
-      		client_ip = inet_ntoa(cli_addr.sin_addr); 
+      	client_ip = inet_ntoa(cli_addr.sin_addr); 
 
 		/* Starts a new client connection */
 		Connection *connection = malloc(sizeof(*connection));
+		connection->client_address = &cli_addr;
 		
 		if (new_server_port(address, connection) == SUCCESS) {
 			connection->ip = client_ip;

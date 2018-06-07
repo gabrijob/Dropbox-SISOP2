@@ -10,7 +10,7 @@ int send_packet(int *msgid, char *buffer, int sockid, struct sockaddr_in *to){
 
 	socklen_t tolen = sizeof(struct sockaddr_in);
 
-    strncpy(packet.buffer, buffer, BUFFER_SIZE);
+    memcpy(packet.buffer, buffer, BUFFER_SIZE);
     packet.ack = FALSE;
     packet.message_id = *msgid;
 
@@ -58,7 +58,7 @@ int recv_packet(int *msgid, char *buffer, int sockid, struct sockaddr_in *from){
 	}while (packet.ack != TRUE );
 
     *msgid = *msgid + 1;
-    strncpy(buffer, packet.buffer, BUFFER_SIZE);
+    memcpy(buffer, packet.buffer, BUFFER_SIZE);
     return 0;
 }
 
