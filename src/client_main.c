@@ -108,6 +108,14 @@ void client_menu() {
 	int is_contact_server = FALSE;
 	int exited = FALSE;
 	while(!exited){
+
+		/* CHECK FOR PENDING CHANGES */
+		if(is_contact_server){
+			pthread_mutex_lock(&user.lock_server_comm);
+			answer_pending();
+			pthread_mutex_unlock(&user.lock_server_comm);
+		}
+		
 		printf("\nEsperando comandos...\n");
 		is_contact_server = TRUE;
 
@@ -159,14 +167,7 @@ void client_menu() {
 			}
 			/* INVALID COMMAND*/
 			/*else
-				printf("\nComando invalido");*/	
-			
-			/* PENDING CHANGES */
-			if(is_contact_server){
-				pthread_mutex_lock(&user.lock_server_comm);
-				answer_pending();
-				pthread_mutex_unlock(&user.lock_server_comm);
-			}			
+				printf("\nComando invalido");*/		
 		}
 		else
 			printf("\nFalha ao ler comando");
