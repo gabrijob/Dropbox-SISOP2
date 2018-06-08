@@ -48,7 +48,7 @@ void receive_file(char* filename, int sockid, char* id, MSG_ID* msg_id) {
 			if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
 				printf("\nERROR receiving file from client");		
 			
-			printf("\nMSG ID = %d", msg_id->client); //debug
+			//printf("\nMSG ID = %d", msg_id->client); //debug
 			if((file_size - bytes_received) > BUFFER_SIZE) {
 				fwrite(buffer, sizeof(char), BUFFER_SIZE, file);
 				bytes_received += sizeof(char) * BUFFER_SIZE; 
@@ -103,7 +103,7 @@ void send_file_server(char *filename, int sockid, char* id, struct sockaddr_in *
 			if(send_packet(&msg_id->server, buffer, sockid, cli_addr) < 0)
 				printf("\nERROR sending file to client");
 
-			printf("\nMSG ID = %d", msg_id->server); //debug
+			//printf("\nMSG ID = %d", msg_id->server); //debug
 			printf("\n Sending file %s - Total: %d / Read: %d", filename, file_size, bytes_sent); //DEBUG
 		}
 		printf("\n Finished sending file %s\n", filename);

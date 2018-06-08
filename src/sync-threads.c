@@ -104,7 +104,7 @@ void *watcher(void* user) {
 	      		}
 		}
 		//pthread_mutex_unlock(&(user_info->lock_server_comm));
-		usleep(5000000);
+		usleep(10000000);
 	}
 
 	inotify_rm_watch(fd, wd);

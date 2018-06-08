@@ -153,7 +153,7 @@ void send_file_client(char *path, UserInfo *user, MSG_ID *msg_id) {
 			if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0)
 				printf("\nERROR sending file");
 			
-			printf("\nMSG ID = %d", msg_id->client); //debug
+			//printf("\nMSG ID = %d", msg_id->client); //debug
 			printf("\n Sending file %s - Total: %d / Read: %d", filepath, file_size, bytes_sent); //DEBUG
 		}
 		printf("\n Finished sending file %s\n", filepath);
@@ -211,14 +211,14 @@ void get_file(char *filename, UserInfo *user, char *path_download, MSG_ID *msg_i
 		sprintf(filepath, "%s/%s", path_download, filename);
 		printf("\nPath specified is %s", path_download);
 	}
-	printf("File will be donwloaded in %s", filepath); //DEBUG
+	printf("\nFile will be donwloaded in %s", filepath); //DEBUG
 	FILE* file;
 	file = fopen(filepath, "wb");
 
 	if(file) {
 		/* Receives the file size from server */
 		if(recv_packet(&msg_id->server, buffer, sockid, &from) < 0)
-			printf("ERROR receiving file size from server\n");
+			printf("\nERROR receiving file size from server\n");
 
 		printf("\nFile size: %s", buffer);
 		file_size = atoi(buffer);
@@ -230,7 +230,7 @@ void get_file(char *filename, UserInfo *user, char *path_download, MSG_ID *msg_i
 			if(recv_packet(&msg_id->server, buffer, sockid, &from) < 0)
 				printf("ERROR receiving file from server\n");
 
-			printf("\nMSG ID = %d", msg_id->server); //debug
+			//printf("\nMSG ID = %d", msg_id->server); //debug
 			if((file_size - bytes_received) > BUFFER_SIZE) {
 				fwrite(buffer, sizeof(char), BUFFER_SIZE, file);
 				bytes_received += sizeof(char) * BUFFER_SIZE; 
