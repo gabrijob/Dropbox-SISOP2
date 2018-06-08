@@ -31,7 +31,7 @@ void *answer_pending(void* user) {
 
 		/* If there are, synchronize */
 		if(strcmp(buffer, SYNC_REQ) == 0) {
-			//printf("\nPending changes on server"); //debug
+			printf("\nPending changes on server"); //debug
 			sync_client(user_info, msg_id_ptr);
 		}
 		/*else if(strcmp(buffer, SYNC_NREQ) == 0)
@@ -62,12 +62,13 @@ void *watcher(void* user) {
 		printf("Error inotify_init\n");		
 	}
 	
-	wd = inotify_add_watch(fd, watch_path, IN_CLOSE_WRITE | IN_CREATE | IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM | IN_MOVED_TO);
+	wd = inotify_add_watch(fd, watch_path, IN_CLOSE_WRITE | IN_DELETE | IN_CREATE | IN_DELETE_SELF | IN_MOVED_FROM | IN_MOVED_TO);
 
 	char path[MAXNAME];
 	int thread_running = TRUE;
 
 	while(thread_running) {
+		//pthread_mutex_lock(&(user_info->lock_server_comm));
 		length = read(fd, buffer, EVENT_BUF_LEN); 
 
 		if (length < 0) {
@@ -82,18 +83,18 @@ void *watcher(void* user) {
 
 		  			if (event->mask & (IN_CLOSE_WRITE | IN_CREATE | IN_MOVED_TO)) {
 		    				if (check_dir(path) && (event->name[0] != '.')) {
-		      					pthread_mutex_lock(&(user_info->lock_server_comm));
+								pthread_mutex_lock(&(user_info->lock_server_comm));
 								printf("\nRequest upload: %s to user_%s\n", event->name, user_info->id);
 
-		      					//send_file_client(path, user_info);
+		      					send_file_client(path, user_info, user_info->msg_id);
 								pthread_mutex_unlock(&(user_info->lock_server_comm));
 		    				}
 		  			} else if (event->mask & (IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
 	    					if (event->name[0] != '.') {
-	      						pthread_mutex_lock(&(user_info->lock_server_comm));
+								pthread_mutex_lock(&(user_info->lock_server_comm));
 								printf("\nRequest delete: %s to user_%s\n", event->name, user_info->id);
 
-	      						//delete_file(event->name, user_info);
+	      						delete_file(event->name, user_info, user_info->msg_id);
 								pthread_mutex_unlock(&(user_info->lock_server_comm));
 	    					}
 		  			}
@@ -102,7 +103,7 @@ void *watcher(void* user) {
 				i += EVENT_SIZE + event->len;
 	      		}
 		}
-
+		//pthread_mutex_unlock(&(user_info->lock_server_comm));
 		usleep(5000000);
 	}
 

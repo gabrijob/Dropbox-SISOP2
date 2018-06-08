@@ -136,7 +136,7 @@ int older_file(char *last_modified, char *aux) {
 	time_t time_f2 = getTime(aux);
 
 	if(difftime(time_f1, time_f2) > 0)
-		return SUCCESS;
+		return 1;
 	return 0;
 }
 

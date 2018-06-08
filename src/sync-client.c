@@ -67,7 +67,7 @@ void synchronize_local(UserInfo *user, MSG_ID *msg_id) {
 			printf("\nFile %s does not exist... downloading", filename);	//debug
 			get_file(filename, user, user->folder, msg_id);
 		}
-		else if (older_file(last_modified_server, last_modified_client) == 0) {
+		else if (older_file(last_modified_server, last_modified_client) == 1) {
 			printf("\nFile %s older... downloading", filename);	//debug
 			get_file(filename, user, user->folder, msg_id);
 		}
