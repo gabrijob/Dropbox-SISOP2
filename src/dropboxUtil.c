@@ -2,9 +2,7 @@
 #define UTIL_CODE
 
 #include "dropboxUtil.h"
-#include "sync-server.h"
-#include "sync-client.h"
-#include "watcher.h"
+
 
 void *dir_content_thread(void *ptr) {
    struct dir_content *args = (struct dir_content *) ptr;

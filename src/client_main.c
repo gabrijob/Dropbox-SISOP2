@@ -5,9 +5,9 @@
 
 /*   Global variables   */
 UserInfo user;
-pthread_t sync_thread;
-//pthread_t another_sync_thread;
 MSG_ID msg_id;
+pthread_t local_sync_thread;
+pthread_t remote_sync_thread;
 
 
 void list_server() {
@@ -74,50 +74,30 @@ void get_sync_dir() {
 	sync_client(&user, &msg_id);
 }
 
-void answer_pending() {
-	int sockid = user.socket_id;
-	struct sockaddr_in from;
-
-	char buffer[BUFFER_SIZE];
-
-			
-	bzero(buffer, BUFFER_SIZE);
-	if(recv_packet(&msg_id.server, buffer, sockid, &from) < 0)
-		printf("\nERROR receiving sync request from server");
-
-	if(strcmp(buffer, SYNC_REQ) == 0) {
-		printf("\nPending changes on server"); //debug
-		sync_client(&user, &msg_id);
-	}
-	else if(strcmp(buffer, SYNC_NREQ) == 0)
-		printf("\nNo changes on server"); //debug
-
-}
-
 
 void client_menu() {
 	char command_line[MAXPATH];
 	char *command;
 	char *attribute;
 	char *attribute_download;
-	int control_thread;
-	//int another_thread;
+	int r_sync_tid;
+	int l_sync_tid;
 
-	/* cria thread para manter a sincronização local */
-	if((control_thread = pthread_create(&sync_thread, NULL, watcher, (void *) &user))) {
-		printf("Syncronization Thread creation failed: %d\n", control_thread);
+	/* cria threads para manter a sincronização local */
+	if((l_sync_tid = pthread_create(&local_sync_thread, NULL, answer_pending, (void *) &user))) {
+		printf("Syncronization Thread 2 creation failed: %d\n", l_sync_tid);
 	}
 
-	/*if((another_thread = pthread_create(&another_sync_thread, NULL, answer_pending, NULL))) {
-		printf("Syncronization Thread 2 creation failed: %d\n", another_thread);
-	}*/
+	/* cria threads para manter a sincronização remota */
+	if((r_sync_tid = pthread_create(&remote_sync_thread, NULL, watcher, (void *) &user))) {
+		printf("Syncronization Thread creation failed: %d\n", r_sync_tid);
+	}
+	
 
-	int is_contact_server = FALSE;
 	int exited = FALSE;
 	while(!exited){
 		
 		printf("\nEsperando comandos...\n");
-		is_contact_server = TRUE;
 
 		if(fgets(command_line, sizeof(command_line), stdin) != NULL) {
 			command_line[strcspn(command_line, "\r\n")] = 0;
@@ -150,8 +130,7 @@ void client_menu() {
 			}
 			/* LIST_CLIENT */
 			else if(strcmp(command, "list_client") == 0) {
-				list_client();
-				is_contact_server = FALSE;
+				list_client();;
 			}
 			/* GET_SYNC_DIR*/
 			else if(strcmp(command, "get_sync_dir") == 0) {
@@ -166,23 +145,16 @@ void client_menu() {
 				pthread_mutex_unlock(&user.lock_server_comm);
 			}
 			/* INVALID COMMAND*/
-			else {
-				is_contact_server = FALSE;
-			}	
-
-			/* CHECK FOR PENDING CHANGES */
-			if(is_contact_server) {
-				pthread_mutex_lock(&user.lock_server_comm);
-				answer_pending();
-				pthread_mutex_unlock(&user.lock_server_comm);
-			}
+			/*else {
+			}*/	
 		}
 		else
 			printf("\nFalha ao ler comando");
 	}
     //Fecha a thread de sincronizacao
-	pthread_cancel(sync_thread);
-	printf("\nSync thread killed");  //debug
+	pthread_cancel(local_sync_thread);
+	pthread_cancel(remote_sync_thread);
+	printf("\nSync threads killed");  //debug
 
 	close_session(&user, &msg_id);
 }

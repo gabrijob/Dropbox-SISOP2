@@ -55,6 +55,7 @@ int login_server(char *host, int port, UserInfo *user, MSG_ID *msg_id) {
 	serv_conn.sin_port = htons(atoi(buffer)); //updates default port with port received from the server
 	msg_id->client = START_MSG_COUNTER;
 	msg_id->server = START_MSG_COUNTER;
+	user->msg_id = msg_id;
 
 	/* Initializes mutex to control comunication with server*/
 	if(pthread_mutex_init(&user->lock_server_comm, NULL) != 0){

@@ -46,7 +46,6 @@
 /* Communication constants */
 #define START_MSG_COUNTER 0
 
-#define NO_COMMAND "NO COMMAND REQUESTED"
 #define END_REQ "END SESSION REQUEST"
 #define UP_REQ "FILE UPLOAD REQUEST"
 #define F_NAME_REQ "FILE NAME REQUEST"
@@ -57,6 +56,7 @@
 #define DEL_COMPLETE "FILE DELETED"
 #define SYNC_REQ "SYNCHRONIZATION REQUEST"
 #define SYNC_NREQ "SYNCHRONIZATION NOT REQUIRED"
+#define NEED_SYNC "IS SYNCHRONIZATION NEEDED"
 
 #define S_SYNC "sync"
 #define S_GET "get"
@@ -68,6 +68,11 @@ typedef struct file_info{
 	char last_modified[MAXNAME];
 	int size;
 }FileInfo;
+
+typedef struct msg_id{
+	int server;
+	int client;
+}MSG_ID;
 
 typedef struct server_info {
 	char ip[sizeof(DEFAULT_ADDRESS) * 2];
@@ -81,6 +86,7 @@ typedef struct user_info {
 	int socket_id;
 	struct sockaddr_in *serv_conn;
 	pthread_mutex_t lock_server_comm;
+	struct msg_id *msg_id;
 }UserInfo;
 
 typedef struct connection_info{
@@ -101,11 +107,6 @@ typedef struct client{
 	int n_files;
 	int pending_changes;
 }Client;
-
-typedef struct msg_id{
-	int server;
-	int client;
-}MSG_ID;
 
 typedef struct client_node{
 	Client* client;

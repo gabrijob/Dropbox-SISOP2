@@ -3,7 +3,7 @@
 
 #include "dropboxUtil.h"
 #include "sync-client.h"
-#include "watcher.h"
+#include "sync-threads.h"
 
 
 int login_server(char *host, int port, UserInfo *user, MSG_ID *msg_id);

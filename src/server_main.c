@@ -205,21 +205,26 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 		/* Marks that there are pending changes */
 		client->pending_changes = devicesOn(client);		
 	}
-	/* Synchronizes client if there are pending changes */
-	if(client->pending_changes > 0) {
-		strcpy(buffer, SYNC_REQ);
-		if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
-		printf("\nERROR requesting sync from server");
+	/* ANSWER CLIENT IF NEEDS TO SYNC */
+	else if(strcmp(buffer, NEED_SYNC) == 0) {
 
-		sync_server(socket, client, msg_id);
-		client->pending_changes = client->pending_changes - 1;
-	}
-	/* If there's not must tell client too */
-	else{
-		strcpy(buffer, SYNC_NREQ);
-		if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
-			printf("\nERROR telling client to not sync");
-	}
+		/* Synchronizes client if there are pending changes */
+		if(client->pending_changes > 0) {
+
+			strcpy(buffer, SYNC_REQ);
+			if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
+			printf("\nERROR requesting sync from server");
+
+			sync_server(socket, client, msg_id);
+			client->pending_changes = client->pending_changes - 1;
+		}
+		/* If there's not must tell client also */
+		else{
+			strcpy(buffer, SYNC_NREQ);
+			if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
+				printf("\nERROR telling client to not sync");
+		}
+	}	
 
 }
 
@@ -292,29 +297,12 @@ void* clientThread(void* connection_struct) {
 		int connected = TRUE;
 		/* Waits for commands */
 		while(connected == TRUE) {
-			/* Synchronizes client if there are pending changes 
-			if(client->pending_changes > 0) {
-				strcpy(buffer, SYNC_REQ);
-				if(send_packet(&msg_id.server, buffer, socket, cli_addr) < 0)
-				printf("\nERROR requesting sync from server");
-
-				sync_server(socket, client, &msg_id);
-				client->pending_changes = client->pending_changes - 1;
-			}
-			/* If there's not must tell client too 
-			else{
-				strcpy(buffer, SYNC_NREQ);
-				if(send_packet(&msg_id.server, buffer, socket, cli_addr) < 0)
-					printf("\nERROR telling client to not sync");
-			}
-
 			/* Waits for commands */
 			printf("\nWaiting for commands from client-%s at port-%d/socket-%d\n", client_id, connection->port, socket); //DEBUG
-			bzero(buffer, BUFFER_SIZE -1);
-          					
-            		if(recv_packet(&msg_id.client, buffer, socket, cli_addr) < 0) {
-                		printf("\nERROR receiving command");
-            		}
+			bzero(buffer, BUFFER_SIZE -1);				
+            if(recv_packet(&msg_id.client, buffer, socket, cli_addr) < 0) {
+            	printf("\nERROR receiving command");
+            }
 			if(strcmp(buffer, END_REQ) == 0) {
 				connected = FALSE;
 				sem_post(&semaphore);

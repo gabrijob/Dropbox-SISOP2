@@ -1,11 +1,50 @@
-#ifndef WATCHER_CODE
-#define WATCHER_CODE
+#ifndef SYNC_THREADS_CODE
+#define SYNC_THREADS_CODE
 
 
-#include "watcher.h"
+#include "sync-threads.h"
 
 #define EVENT_SIZE (sizeof(struct inotify_event))
 #define EVENT_BUF_LEN (1024 * (EVENT_SIZE))
+
+void *answer_pending(void* user) {
+	UserInfo *user_info = (UserInfo*) user;
+	MSG_ID *msg_id_ptr = user_info->msg_id;
+
+	int sockid = user_info->socket_id;
+	struct sockaddr_in *serv_conn = user_info->serv_conn;
+	struct sockaddr_in from;
+
+	char buffer[BUFFER_SIZE];
+
+	while(1){
+		pthread_mutex_lock(&user_info->lock_server_comm);
+			
+		/* Ask server if there are pending changes */
+		strcpy(buffer, NEED_SYNC);
+		if(send_packet(&msg_id_ptr->client, buffer, sockid, serv_conn) < 0) 
+			printf("\nERROR asking server if there are pending changes");
+
+		bzero(buffer, BUFFER_SIZE);
+		if(recv_packet(&msg_id_ptr->server, buffer, sockid, &from) < 0)
+			printf("\nERROR receiving sync request from server");
+
+		/* If there are, synchronize */
+		if(strcmp(buffer, SYNC_REQ) == 0) {
+			//printf("\nPending changes on server"); //debug
+			sync_client(user_info, msg_id_ptr);
+		}
+		/*else if(strcmp(buffer, SYNC_NREQ) == 0)
+			printf("\nNo changes on server");*/ //debug
+
+		pthread_mutex_unlock(&user_info->lock_server_comm);
+	}
+
+	return SUCCESS;
+}
+
+
+
 
 /* Uses inotify to watch sync time in a certain period of time */
 void *watcher(void* user) {
