@@ -55,12 +55,13 @@ void synchronize_local(UserInfo *user, MSG_ID *msg_id) {
 			printf("\nERROR receiving file's last modification");
 
 		strcpy(last_modified_server, buffer);
-		printf("\nLast modified: %s", last_modified_server);			//debug
+		printf("\nLast modified on server: %s", last_modified_server);			//debug
 
 
 		sprintf(path, "%s/%s", user->folder, filename);
 		/* Function to acquire modification time of sync file */
 		getModifiedTime(path, last_modified_client);
+		printf("\nLast modified local: %s", last_modified_client);
 
 		/* Asks for file if it's older or doesn't exist */
 		if(check_dir(path) == FALSE) {;					

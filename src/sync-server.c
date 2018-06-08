@@ -105,7 +105,7 @@ void synchronize_server(int sockid, Client* client_sync, MSG_ID* msg_id) {
 
 		sprintf(filepath, "%s/%s/%s/%s", getUserHome(), SERVER_FOLDER, client_sync->userid, filename);
     	getModifiedTime(filepath, last_modified_server);
-	    
+	    printf("\nLast modified servidor: %s", last_modified_server);
 
 		/* Asks for file if it's older or doesn't exist */
 		if(check_dir(filepath) == FALSE) {
