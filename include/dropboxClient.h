@@ -10,7 +10,7 @@ int login_server(char *host, int port, UserInfo *user, MSG_ID *msg_id);
 
 void sync_client(UserInfo *user, MSG_ID *msg_id);
 
-void send_file_client(char *path, UserInfo *user, MSG_ID *msg_id);
+void send_file(char *path, UserInfo *user, MSG_ID *msg_id);
 
 void get_file(char *filename, UserInfo *user, char *path_download, MSG_ID *msg_id);
 

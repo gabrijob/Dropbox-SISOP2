@@ -56,7 +56,7 @@ void synchronize_client(int sockid, Client* client_sync, MSG_ID* msg_id) {
 			if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
 				printf("\nERROR sending file's last_modification"); 
 
-		   	send_file_server(client_sync->files[i].name, sockid, client_sync->userid, &cli_addr, msg_id);
+		   	send_file(client_sync->files[i].name, sockid, client_sync->userid, &cli_addr, msg_id);
 		}
 	}	
 	printf("\nEncerrando sincronização do cliente.\n");		

@@ -136,7 +136,7 @@ void synchronize_remote(UserInfo *user, MSG_ID *msg_id) {
 
 		/* Send file */
 		if(strcmp(buffer, S_GET) == 0) {
-			send_file_client(path, user, msg_id);
+			send_file(path, user, msg_id);
 		}
 		/* Delete file */
 		else if(strcmp(buffer, DEL_REQ) == 0) {

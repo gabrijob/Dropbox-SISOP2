@@ -84,7 +84,7 @@ void sync_client(UserInfo *user, MSG_ID *msg_id) {
 }
 
 
-void send_file_client(char *path, UserInfo *user, MSG_ID *msg_id) {
+void send_file(char *path, UserInfo *user, MSG_ID *msg_id) {
 	char* filename;
 	char filepath[MAXPATH];
 	int file_size;
@@ -136,13 +136,18 @@ void send_file_client(char *path, UserInfo *user, MSG_ID *msg_id) {
 		if(file_size == 0) {
 			fclose(file);
 			printf("\nThe file is empty");
-			return;
 		}
 		
 		sprintf(buffer, "%d", file_size);
 		/* Sends the file size to the server*/
 		if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0)
 			printf("\nERROR sending file size");
+
+		/* Receive confirmation to start sending */
+		if(recv_packet(&msg_id->server, buffer, sockid, serv_conn) < 0)
+			printf("\nERROR receiving confirmation to send");
+		
+		if(strcmp(buffer, NOT_OK) == 0) return;
 
 		/* Sends the file in BUFFER_SIZE sized parts*/
 		bytes_sent = 0;
@@ -153,14 +158,24 @@ void send_file_client(char *path, UserInfo *user, MSG_ID *msg_id) {
 			if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0)
 				printf("\nERROR sending file");
 			
-			//printf("\nMSG ID = %d", msg_id->client); //debug
+			printf("\nMSG ID = %d", msg_id->client); //debug
 			printf("\n Sending file %s - Total: %d / Read: %d", filepath, file_size, bytes_sent); //DEBUG
 		}
 		printf("\n Finished sending file %s\n", filepath);
 		fclose(file);
 	}
-	else
+	else {
 		printf("\nErro ao abrir o arquivo %s\n", filepath);
+	
+		/* Sends the file size 0 to the server*/
+		sprintf(buffer, "0");
+		if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0)
+			printf("\nERROR sending file size 0 to server");
+
+		/* Receive message to not send */
+		if(recv_packet(&msg_id->server, buffer, sockid, serv_conn) < 0)
+			printf("\nERROR receiving not send message");
+	}
 }
 
 
@@ -212,16 +227,31 @@ void get_file(char *filename, UserInfo *user, char *path_download, MSG_ID *msg_i
 		printf("\nPath specified is %s", path_download);
 	}
 	printf("\nFile will be donwloaded in %s", filepath); //DEBUG
+
+	/* Receives the file size from server */
+	if(recv_packet(&msg_id->server, buffer, sockid, &from) < 0)
+		printf("\nERROR receiving file size from server\n");
+	
+	printf("\nFile size: %s", buffer);
+	file_size = atoi(buffer);
+
+
 	FILE* file;
 	file = fopen(filepath, "wb");
 
 	if(file) {
-		/* Receives the file size from server */
-		if(recv_packet(&msg_id->server, buffer, sockid, &from) < 0)
-			printf("\nERROR receiving file size from server\n");
-
-		printf("\nFile size: %s", buffer);
-		file_size = atoi(buffer);
+		/* Tell server to start sending if size > 0*/
+		if(file_size == 0) {
+			strcpy(buffer, NOT_OK);
+			if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0)
+				printf("\nERROR sending message to not send file\n");
+			return;
+		}
+		else {
+			strcpy(buffer, OK);
+			if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0)
+				printf("\nERROR sending confirmation to server\n");
+		}
 
 		bytes_received = 0;
 		/* Receives the file in BUFFER_SIZE sized parts*/
@@ -230,7 +260,7 @@ void get_file(char *filename, UserInfo *user, char *path_download, MSG_ID *msg_i
 			if(recv_packet(&msg_id->server, buffer, sockid, &from) < 0)
 				printf("ERROR receiving file from server\n");
 
-			//printf("\nMSG ID = %d", msg_id->server); //debug
+			printf("\nMSG ID = %d", msg_id->server); //debug
 			if((file_size - bytes_received) > BUFFER_SIZE) {
 				fwrite(buffer, sizeof(char), BUFFER_SIZE, file);
 				bytes_received += sizeof(char) * BUFFER_SIZE; 
@@ -244,8 +274,15 @@ void get_file(char *filename, UserInfo *user, char *path_download, MSG_ID *msg_i
 		printf("\n Finished receiving file %s\n", filename); //DEBUG
 		fclose(file);
 	}
-	else
+	else {
 		printf("\nErro ao abrir o arquivo %s", filepath);
+
+		/* Tell server to not send file */
+		strcpy(buffer, NOT_OK);
+		if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0)
+			printf("\nERROR sending message to not send file\n");
+	
+	}
 }
 
 

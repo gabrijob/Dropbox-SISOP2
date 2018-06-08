@@ -113,7 +113,7 @@ void client_menu() {
 			/* UPLOAD */
 			if(strcmp(command, "upload") == 0) {
 				pthread_mutex_lock(&user.lock_server_comm);
-				send_file_client(attribute, &user, &msg_id);
+				send_file(attribute, &user, &msg_id);
 				pthread_mutex_unlock(&user.lock_server_comm);
 			}
 			/* DOWNLOAD */

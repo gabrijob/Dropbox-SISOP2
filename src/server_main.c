@@ -170,7 +170,7 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
         
 		char filename[MAXNAME];
 		sprintf(filename, "%s", buffer);
-		send_file_server(filename, socket, client->userid, cli_addr, msg_id);		
+		send_file(filename, socket, client->userid, cli_addr, msg_id);		
 	}
 	/* LIST_SERVER */
 	else if(strcmp(buffer, LIST_S_REQ) == 0) {

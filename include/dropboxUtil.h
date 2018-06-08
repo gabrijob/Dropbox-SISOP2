@@ -58,6 +58,9 @@
 #define SYNC_NREQ "SYNCHRONIZATION NOT REQUIRED"
 #define NEED_SYNC "IS SYNCHRONIZATION NEEDED"
 
+#define OK "OK"
+#define NOT_OK "NOT_OK"
+
 #define S_SYNC "sync"
 #define S_GET "get"
 #define S_OK "ok"
