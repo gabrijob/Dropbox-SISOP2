@@ -113,7 +113,7 @@ void client_menu() {
 			/* UPLOAD */
 			if(strcmp(command, "upload") == 0) {
 				pthread_mutex_lock(&user.lock_server_comm);
-				send_file(attribute, &user, &msg_id);
+				send_file(attribute, &user, &msg_id, FALSE);
 				pthread_mutex_unlock(&user.lock_server_comm);
 			}
 			/* DOWNLOAD */
@@ -141,7 +141,7 @@ void client_menu() {
 			/* DELETE */
 			else if(strcmp(command, "delete") == 0) {
 				pthread_mutex_lock(&user.lock_server_comm);
-				delete_file(attribute, &user, &msg_id);
+				delete_file(attribute, &user, &msg_id, FALSE);
 				pthread_mutex_unlock(&user.lock_server_comm);
 			}
 			/* INVALID COMMAND*/

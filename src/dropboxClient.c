@@ -84,7 +84,7 @@ void sync_client(UserInfo *user, MSG_ID *msg_id) {
 }
 
 
-void send_file(char *path, UserInfo *user, MSG_ID *msg_id) {
+void send_file(char *path, UserInfo *user, MSG_ID *msg_id, int server_only) {
 	char* filename;
 	char filepath[MAXPATH];
 	int file_size;
@@ -101,7 +101,8 @@ void send_file(char *path, UserInfo *user, MSG_ID *msg_id) {
 	printf("\nRequisitando envio de arquivo para porta-%d/socket-%d", ntohs(serv_conn->sin_port), sockid); //DEBUG
 	
 	/* Sends upload request to server */
-	strcpy(buffer, UP_REQ);
+	if(server_only == TRUE) strcpy(buffer, UP_REQ_S);
+	else strcpy(buffer, UP_REQ);
 
 	if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0) {
 		printf("\nERROR sending upload request");
@@ -286,14 +287,15 @@ void get_file(char *filename, UserInfo *user, char *path_download, MSG_ID *msg_i
 }
 
 
-void delete_file(char *filename, UserInfo *user, MSG_ID *msg_id) {
+void delete_file(char *filename, UserInfo *user, MSG_ID *msg_id, int server_only) {
 	int sockid = user->socket_id;
 	struct sockaddr_in *serv_conn = user->serv_conn;
 
 	char buffer[BUFFER_SIZE];
 
 	//Send delete request to server
-	strcpy(buffer, DEL_REQ);
+	if(server_only == TRUE) strcpy(buffer, DEL_REQ_S);
+	else strcpy(buffer, DEL_REQ);
 
 	if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0) {
 		printf("\n ERROR sending delete request");

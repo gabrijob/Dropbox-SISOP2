@@ -138,9 +138,12 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 	sprintf(client_folder, "%s/%s", serverInfo.folder, client->userid);
 
 	/* UPLOAD */
-	if(strcmp(buffer, UP_REQ) == 0) {
-		strcpy(buffer, F_NAME_REQ);
+	if(strcmp(buffer, UP_REQ) == 0 || strcmp(buffer, UP_REQ_S) == 0) {
+		int update_client = TRUE;
+		if (strcmp(buffer, UP_REQ_S) == 0) update_client = FALSE;
+
 		/* Request filename */
+		strcpy(buffer, F_NAME_REQ);
         if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
         	printf("\nERROR requesting file name");
         
@@ -152,11 +155,14 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 		sprintf(filename, "%s", buffer);
 		receive_file(filename, socket, client->userid, msg_id);	
 
-		/* Update files list */
-		client->n_files = get_dir_file_info(client_folder, client->files);
-		/* Marks that there are pending changes */
-		client->pending_changes = devicesOn(client);
-	} 
+		/* UPLOAD ON CLIENT NEEDED*/
+		if(update_client == TRUE) {
+			/* Update files list */
+			client->n_files = get_dir_file_info(client_folder, client->files);
+			/* Marks that there are pending changes */
+			client->pending_changes = devicesOn(client);
+		}
+	}
 	/* DOWNLOAD */
 	else if(strcmp(buffer, DOWN_REQ) == 0) {
 		strcpy(buffer, F_NAME_REQ);
@@ -181,9 +187,12 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 		sync_server(socket, client, msg_id);
 	}
 	/* DELETE */
-	else if(strcmp(buffer, DEL_REQ) == 0) {
-		strcpy(buffer, F_NAME_REQ);
+	else if(strcmp(buffer, DEL_REQ) == 0 || strcmp(buffer, DEL_REQ_S) == 0) {
+		int update_client = TRUE;
+		if (strcmp(buffer, DEL_REQ_S) == 0) update_client = FALSE;
+
 		/* Request filename */
+		strcpy(buffer, F_NAME_REQ);
         if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
         	printf("\nERROR requesting file name");
 
@@ -200,10 +209,13 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
        	if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
         	printf("\nERROR sending deletion confirmation");
 
-		/* Update files list */
-		client->n_files = get_dir_file_info(client_folder, client->files);
-		/* Marks that there are pending changes */
-		client->pending_changes = devicesOn(client);		
+		/* DELETE ON CLIENT NEEDED*/
+		if(update_client == TRUE) {
+			/* Update files list */
+			client->n_files = get_dir_file_info(client_folder, client->files);
+			/* Marks that there are pending changes */
+			client->pending_changes = devicesOn(client);
+		}		
 	}
 	/* ANSWER CLIENT IF NEEDS TO SYNC */
 	else if(strcmp(buffer, NEED_SYNC) == 0) {
