@@ -4,6 +4,17 @@
 #include "dropboxUtil.h"
 
 
+int getFileIndex(char *filename, FileInfo files[], int number_of_files) {
+	int i;
+	
+	for(i = 0; i < number_of_files; i++){
+		if(strcmp(filename, files[i].name) == 0)
+			return i;
+	}
+
+	return -1;
+}
+
 void *dir_content_thread(void *ptr) {
    struct dir_content *args = (struct dir_content *) ptr;
 
@@ -222,22 +233,24 @@ ClientList addClient(char* userID, int socket, ClientList user_list) {
 	return user_list;
 }
 
-ClientList removeClient(Client* client, ClientList client_list){
+ClientList removeClient(Client* client, ClientList user_list){
 	printf("Removendo cliente %s\n", client->userid); //debug
-	ClientNode* current = client_list;
-	ClientNode* last_visited = client_list;
+	ClientList current = user_list;
+	ClientList last_visited = user_list;
 
-	if(strcmp(client->userid, client_list->client->userid) == 0) { // testa se é o primeiro elemento
-		client_list = client_list->next;
+	if(strcmp(client->userid, user_list->client->userid) == 0) { // testa se é o primeiro elemento
+		user_list = user_list->next;
+		if(user_list != NULL) user_list->prev = NULL;
 		free(current->client);
 		free(current);
-		printf("Único cliente da fila removido.\n"); //debug
-		return NULL;
+		printf("Cliente removido da lista.\n"); //debug
+		return user_list;
 	}
 
 	while(current != NULL) {
 		if(strcmp(client->userid, current->client->userid) == 0) {
 			last_visited->next = current->next;
+			if(last_visited->next != NULL) last_visited->next->prev = last_visited;
 			free(current->client);
 			free(current);
 			printf("Cliente removido da lista.\n"); //debug
@@ -245,7 +258,7 @@ ClientList removeClient(Client* client, ClientList client_list){
 		last_visited = current; // anterior
 		current = current->next; // atual
 	}
-	return client_list;
+	return user_list;
 }
 
 
@@ -265,7 +278,7 @@ int newDevice(Client* client, int socket) {
 	}
 	if(client->devices[1] == -1) {
 		client->devices[1] = socket;
-		return 0;
+		return 1;
 	}
 
 	return -1;

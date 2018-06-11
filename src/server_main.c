@@ -153,7 +153,8 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 
 		char filename[MAXNAME];
 		sprintf(filename, "%s", buffer);
-		receive_file(filename, socket, client->userid, msg_id);	
+		int file_index = getFileIndex(filename, client->files, client->n_files);
+		receive_file(filename, socket, client->userid, msg_id, &(client->mutex_files[file_index]));	
 
 		/* UPLOAD ON CLIENT NEEDED*/
 		if(update_client == TRUE) {
@@ -176,7 +177,8 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
         
 		char filename[MAXNAME];
 		sprintf(filename, "%s", buffer);
-		send_file(filename, socket, client->userid, cli_addr, msg_id);		
+		int file_index = getFileIndex(filename, client->files, client->n_files);
+		send_file(filename, socket, client->userid, cli_addr, msg_id, &(client->mutex_files[file_index]));		
 	}
 	/* LIST_SERVER */
 	else if(strcmp(buffer, LIST_S_REQ) == 0) {
@@ -316,6 +318,7 @@ void* clientThread(void* connection_struct) {
             	printf("\nERROR receiving command");
             }
 			if(strcmp(buffer, END_REQ) == 0) {
+				printf("\nDisconnecting...");
 				connected = FALSE;
 				sem_post(&semaphore);
 			}
@@ -325,8 +328,8 @@ void* clientThread(void* connection_struct) {
 			}
 		}
 
-		//printf("user-%s desconectou no dispositivo %d, socket-%d!\n", client_id, removeDevice(client, device), socket);
-		//clients_list = check_login_status(client, clients_list);
+		printf("user-%s desconectou no dispositivo %d, socket-%d!\n", client_id, removeDevice(client, device), socket);
+		clients_list = check_login_status(client, clients_list);
 	}
 	else {
 		printf("Too many devices for same client!!\n");

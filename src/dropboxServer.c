@@ -15,7 +15,7 @@ void sync_server(int sock_s, Client *client_s, MSG_ID* msg_id) {
 }
 
 
-void receive_file(char* filename, int sockid, char* id, MSG_ID* msg_id) {
+void receive_file(char* filename, int sockid, char* id, MSG_ID* msg_id, pthread_mutex_t *file_mutex) {
 	char filepath[3*MAXNAME];
 	int bytes_received;
 	int file_size;
@@ -54,13 +54,14 @@ void receive_file(char* filename, int sockid, char* id, MSG_ID* msg_id) {
 
 		/* Receives the file in BUFFER_SIZE sized parts*/
 		bytes_received = 0;
+		pthread_mutex_lock(file_mutex);
 		while(file_size > bytes_received) {
 		
 			bzero(buffer, BUFFER_SIZE);
 			if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
 				printf("\nERROR receiving file from client");		
 			
-			printf("\nMSG ID = %d", msg_id->client); //debug
+			//printf("\nMSG ID = %d", msg_id->client); //debug
 			if((file_size - bytes_received) > BUFFER_SIZE) {
 				fwrite(buffer, sizeof(char), BUFFER_SIZE, file);
 				bytes_received += sizeof(char) * BUFFER_SIZE; 
@@ -70,7 +71,8 @@ void receive_file(char* filename, int sockid, char* id, MSG_ID* msg_id) {
 				bytes_received += sizeof(char) * (file_size - bytes_received);
 			}
 			printf("\n Receiving file %s - Total: %d / Written: %d", filename, file_size, bytes_received); //DEBUG
-		} 
+		}
+		pthread_mutex_unlock(file_mutex); 
 		printf("\n Finished receiving file %s\n", filename); //DEBUG
 		fclose(file);
 	}
@@ -85,15 +87,17 @@ void receive_file(char* filename, int sockid, char* id, MSG_ID* msg_id) {
 }
 
 
-void send_file(char *filename, int sockid, char* id, struct sockaddr_in *cli_addr, MSG_ID* msg_id) {
+void send_file(char *filename, int sockid, char* id, struct sockaddr_in *cli_addr, MSG_ID* msg_id, pthread_mutex_t *file_mutex) {
 	char filepath[3*MAXNAME];
 	int bytes_sent;
 	int file_size;
 
 	char buffer[BUFFER_SIZE];
 
+
 	sprintf(filepath, "%s/%s/%s/%s", getUserHome(), SERVER_FOLDER, id, filename);
 	printf("\nSending file at %s", filepath); //DEBUG
+
 
 	FILE* file;
 	file = fopen(filepath, "rb");
@@ -120,6 +124,7 @@ void send_file(char *filename, int sockid, char* id, struct sockaddr_in *cli_add
 
 		/* Sends the file in BUFFER_SIZE sized parts */
 		bytes_sent = 0;
+		pthread_mutex_lock(file_mutex);
 		while(!feof(file)) {
 			fread(buffer, sizeof(char), BUFFER_SIZE, file);
 			bytes_sent += sizeof(char) * BUFFER_SIZE;
@@ -127,9 +132,10 @@ void send_file(char *filename, int sockid, char* id, struct sockaddr_in *cli_add
 			if(send_packet(&msg_id->server, buffer, sockid, cli_addr) < 0)
 				printf("\nERROR sending file to client");
 
-			printf("\nMSG ID = %d", msg_id->server); //debug
+			//printf("\nMSG ID = %d", msg_id->server); //debug
 			printf("\n Sending file %s - Total: %d / Read: %d", filename, file_size, bytes_sent); //DEBUG
 		}
+		pthread_mutex_unlock(file_mutex);
 		printf("\n Finished sending file %s\n", filename);
 		fclose(file);
 	}

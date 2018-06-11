@@ -159,7 +159,7 @@ void send_file(char *path, UserInfo *user, MSG_ID *msg_id, int server_only) {
 			if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0)
 				printf("\nERROR sending file");
 			
-			printf("\nMSG ID = %d", msg_id->client); //debug
+			//printf("\nMSG ID = %d", msg_id->client); //debug
 			printf("\n Sending file %s - Total: %d / Read: %d", filepath, file_size, bytes_sent); //DEBUG
 		}
 		printf("\n Finished sending file %s\n", filepath);
@@ -261,7 +261,7 @@ void get_file(char *filename, UserInfo *user, char *path_download, MSG_ID *msg_i
 			if(recv_packet(&msg_id->server, buffer, sockid, &from) < 0)
 				printf("ERROR receiving file from server\n");
 
-			printf("\nMSG ID = %d", msg_id->server); //debug
+			//printf("\nMSG ID = %d", msg_id->server); //debug
 			if((file_size - bytes_received) > BUFFER_SIZE) {
 				fwrite(buffer, sizeof(char), BUFFER_SIZE, file);
 				bytes_received += sizeof(char) * BUFFER_SIZE; 
@@ -334,20 +334,30 @@ void delete_file(char *filename, UserInfo *user, MSG_ID *msg_id, int server_only
 }
 
 
-void close_session(UserInfo *user, MSG_ID *msg_id) { //TODO: corrigir segmentation fault 
+void close_session(UserInfo *user, MSG_ID *msg_id, pthread_t local_sync_thread, pthread_t remote_sync_thread) {
 
 	char buffer[BUFFER_SIZE];
 
 	int sockid = user->socket_id;
 	struct sockaddr_in *serv_conn = user->serv_conn;
 	
-	//Destroi mutex
-	pthread_mutex_destroy(&user->lock_server_comm);
+	printf("\nClosing session\n");
 
+	pthread_mutex_lock(&(user->lock_server_comm));
 	//Finaliza thread do servidor
 	strcpy(buffer, END_REQ);
 	if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0)
 		printf("\nERROR requesting session end");
+
+
+	 //Fecha a thread de sincronizacao
+	pthread_cancel(local_sync_thread);
+	pthread_cancel(remote_sync_thread);
+	//printf("\nSync threads killed");  //debug
+
+	pthread_mutex_unlock(&(user->lock_server_comm));
+	//Destroi mutex
+	pthread_mutex_destroy(&(user->lock_server_comm));
 
 	//Fecha o socket do cliente
 	close(user->socket_id);

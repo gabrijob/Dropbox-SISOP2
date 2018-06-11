@@ -38,6 +38,7 @@ void *answer_pending(void* user) {
 			printf("\nNo changes on server");*/ //debug
 
 		pthread_mutex_unlock(&user_info->lock_server_comm);
+		usleep(1000000);
 	}
 
 	return SUCCESS;
@@ -68,11 +69,9 @@ void *watcher(void* user) {
 	int thread_running = TRUE;
 
 	while(thread_running) {
-		//printf("\nPRE READ");
 		length = read(fd, buffer, EVENT_BUF_LEN); 
-		//printf("\nPRE MUTEX LOCK");
 		pthread_mutex_lock(&(user_info->lock_server_comm));
-		//printf("\nPOS MUTEX LOCK");
+
 		if (length < 0) {
 			thread_running = FALSE;
 	    } else {
@@ -84,26 +83,16 @@ void *watcher(void* user) {
 					sprintf(path, "%s/%s", watch_path, event->name);
 
 					if (event->mask & (IN_CLOSE_WRITE | IN_CREATE | IN_MOVED_TO)) {
-						/*if(IN_CLOSE_WRITE) printf("\nIN_CLOSE_WRITE");
-						if(IN_CREATE) printf("\nIN_CREATE");
-						if(IN_MOVED_TO) printf("\nIN_MOVED_TO");*/
 						if (check_dir(path) && (event->name[0] != '.')) {
-							//pthread_mutex_lock(&(user_info->lock_server_comm));
 							printf("\nRequest upload: %s to user_%s\n", event->name, user_info->id);
 
 							send_file(path, user_info, user_info->msg_id, TRUE);
-							//pthread_mutex_unlock(&(user_info->lock_server_comm));
 						}
 					} else if (event->mask & (IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
-						/*if(IN_DELETE) printf("\nIN_DELETE");
-						if(IN_DELETE_SELF) printf("\nIN_DELETE_SELF");
-						if(IN_MOVED_FROM) printf("\nIN_MOVED_FROM");*/
 						if (event->name[0] != '.') {
-							//pthread_mutex_lock(&(user_info->lock_server_comm));
 							printf("\nRequest delete: %s to user_%s\n", event->name, user_info->id);
 
-							delete_file(event->name, user_info, user_info->msg_id, TRUE);
-							//pthread_mutex_unlock(&(user_info->lock_server_comm));
+							delete_file(event->name, user_info, user_info->msg_id, TRUE);;
 						}
 					}
 				}
@@ -111,11 +100,8 @@ void *watcher(void* user) {
 			i += EVENT_SIZE + event->len;
       		}
 		}
-		//printf("\nPRE MUTEX UNLOCK");
-		pthread_mutex_unlock(&(user_info->lock_server_comm));
-		//printf("\nPOS MUTEX UNLOCK");
+		pthread_mutex_unlock(&(user_info->lock_server_comm));;
 		usleep(10000000);
-		//printf("\nPOS SLEEP");
 	}
 
 	inotify_rm_watch(fd, wd);

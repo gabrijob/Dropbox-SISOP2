@@ -102,61 +102,55 @@ void client_menu() {
 		if(fgets(command_line, sizeof(command_line), stdin) != NULL) {
 			command_line[strcspn(command_line, "\r\n")] = 0;
 
-			if (strcmp(command_line, "exit") == 0) 
+			if (strcmp(command_line, "exit") == 0)
 				exited = TRUE;
 			else {
 				command = strtok(command_line, " ");
 				attribute = strtok(NULL, " ");
 				attribute_download = strtok(NULL, " ");
+			
+				/* UPLOAD */
+				if(strcmp(command, "upload") == 0) {
+					pthread_mutex_lock(&user.lock_server_comm);
+					send_file(attribute, &user, &msg_id, FALSE);
+					pthread_mutex_unlock(&user.lock_server_comm);
+				}
+				/* DOWNLOAD */
+				else if(strcmp(command, "download") == 0) {
+					pthread_mutex_lock(&user.lock_server_comm);
+					get_file(attribute, &user, attribute_download, &msg_id);
+					pthread_mutex_unlock(&user.lock_server_comm);
+				}
+				/* LIST_SERVER */
+				else if(strcmp(command, "list_server") == 0) {
+					pthread_mutex_lock(&user.lock_server_comm);
+					list_server();
+					pthread_mutex_unlock(&user.lock_server_comm);
+				}
+				/* LIST_CLIENT */
+				else if(strcmp(command, "list_client") == 0) {
+					list_client();;
+				}
+				/* GET_SYNC_DIR*/
+				else if(strcmp(command, "get_sync_dir") == 0) {
+					pthread_mutex_lock(&user.lock_server_comm);
+					get_sync_dir();
+					pthread_mutex_unlock(&user.lock_server_comm);
+				} 
+				/* DELETE */
+				else if(strcmp(command, "delete") == 0) {
+					pthread_mutex_lock(&user.lock_server_comm);
+					delete_file(attribute, &user, &msg_id, FALSE);
+					pthread_mutex_unlock(&user.lock_server_comm);
+				}
 			}
-
-			/* UPLOAD */
-			if(strcmp(command, "upload") == 0) {
-				pthread_mutex_lock(&user.lock_server_comm);
-				send_file(attribute, &user, &msg_id, FALSE);
-				pthread_mutex_unlock(&user.lock_server_comm);
-			}
-			/* DOWNLOAD */
-			else if(strcmp(command, "download") == 0) {
-				pthread_mutex_lock(&user.lock_server_comm);
-				get_file(attribute, &user, attribute_download, &msg_id);
-				pthread_mutex_unlock(&user.lock_server_comm);
-			}
-			/* LIST_SERVER */
-			else if(strcmp(command, "list_server") == 0) {
-				pthread_mutex_lock(&user.lock_server_comm);
-				list_server();
-				pthread_mutex_unlock(&user.lock_server_comm);
-			}
-			/* LIST_CLIENT */
-			else if(strcmp(command, "list_client") == 0) {
-				list_client();;
-			}
-			/* GET_SYNC_DIR*/
-			else if(strcmp(command, "get_sync_dir") == 0) {
-				pthread_mutex_lock(&user.lock_server_comm);
-				get_sync_dir();
-				pthread_mutex_unlock(&user.lock_server_comm);
-			} 
-			/* DELETE */
-			else if(strcmp(command, "delete") == 0) {
-				pthread_mutex_lock(&user.lock_server_comm);
-				delete_file(attribute, &user, &msg_id, FALSE);
-				pthread_mutex_unlock(&user.lock_server_comm);
-			}
-			/* INVALID COMMAND*/
-			/*else {
-			}*/	
+				
 		}
 		else
 			printf("\nFalha ao ler comando");
 	}
-    //Fecha a thread de sincronizacao
-	pthread_cancel(local_sync_thread);
-	pthread_cancel(remote_sync_thread);
-	printf("\nSync threads killed");  //debug
 
-	close_session(&user, &msg_id);
+	close_session(&user, &msg_id, local_sync_thread, remote_sync_thread);
 }
 
 

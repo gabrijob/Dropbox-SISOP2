@@ -56,7 +56,7 @@ void synchronize_client(int sockid, Client* client_sync, MSG_ID* msg_id) {
 			if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
 				printf("\nERROR sending file's last_modification"); 
 
-		   	send_file(client_sync->files[i].name, sockid, client_sync->userid, &cli_addr, msg_id);
+		   	send_file(client_sync->files[i].name, sockid, client_sync->userid, &cli_addr, msg_id, &(client_sync->mutex_files[i]));
 		}
 	}	
 	printf("\nEncerrando sincronização do cliente.\n");		
@@ -144,7 +144,8 @@ void synchronize_server(int sockid, Client* client_sync, MSG_ID* msg_id) {
 				if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
 					printf("\nERROR sending file's last_modification");
 
-				receive_file(filename, sockid, client_sync->userid, msg_id);
+				int file_index = getFileIndex(filename, client_sync->files, client_sync->n_files);
+				receive_file(filename, sockid, client_sync->userid, msg_id, &(client_sync->mutex_files[file_index]));
 			}
 		}
 		/* If neither send OK message*/

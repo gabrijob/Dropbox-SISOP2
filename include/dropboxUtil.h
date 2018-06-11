@@ -133,6 +133,7 @@ typedef struct dir_content {
 } DirContent;
 
 
+int getFileIndex(char *filename, FileInfo files[], int number_of_files);
 int get_dir_file_info(char * path, FileInfo files[]);
 void getFileExtension(const char *filename, char* extension);
 void *dir_content_thread(void *ptr);

@@ -16,7 +16,7 @@ void get_file(char *filename, UserInfo *user, char *path_download, MSG_ID *msg_i
 
 void delete_file(char *filename, UserInfo *user, MSG_ID *msg_id, int server_only);
 
-void close_session(UserInfo *user, MSG_ID *msg_id);
+void close_session(UserInfo *user, MSG_ID *msg_id, pthread_t local_sync_thread, pthread_t remote_sync_thread);
 
 
 #endif
