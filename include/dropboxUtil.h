@@ -110,7 +110,7 @@ typedef struct client{
 	struct file_info files[MAXFILES];
 	pthread_mutex_t mutex_files[MAXFILES];
 	int n_files;
-	int pending_changes;
+	int pending_changes[2];
 }Client;
 
 typedef struct client_node{
@@ -145,6 +145,7 @@ time_t getTime(char *last_modified);
 int older_file(char *last_modified, char *aux);
 int newDevice(Client* client, int socket);
 int removeDevice(Client* client, int device);
+int getDevice(Client* client, int socket);
 int devicesOn(Client* client);
 int fileExists(char* filename);
 int getFilesize(FILE* file);

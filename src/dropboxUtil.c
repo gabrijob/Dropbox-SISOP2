@@ -294,6 +294,16 @@ int removeDevice(Client* client, int device) {
 	return -1;
 }
 
+int getDevice(Client* client, int socket) {
+	if(client) {
+		if(client->devices[0] == socket)
+			return 0;
+		if(client->devices[1] == socket)
+			return 1;
+	}
+	return -1;
+}
+
 int devicesOn(Client* client) {
 	int devices_on = 0;
 

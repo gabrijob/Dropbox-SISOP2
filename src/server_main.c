@@ -136,6 +136,7 @@ int new_server_port(char *address, Connection* connection) {
 void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Client* client, MSG_ID* msg_id) {
 	char client_folder[3*MAXNAME];
 	sprintf(client_folder, "%s/%s", serverInfo.folder, client->userid);
+	int device_index = getDevice(client, socket);
 
 	/* UPLOAD */
 	if(strcmp(buffer, UP_REQ) == 0 || strcmp(buffer, UP_REQ_S) == 0) {
@@ -156,13 +157,13 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 		int file_index = getFileIndex(filename, client->files, client->n_files);
 		receive_file(filename, socket, client->userid, msg_id, &(client->mutex_files[file_index]));	
 
-		/* UPLOAD ON CLIENT NEEDED*/
-		if(update_client == TRUE) {
-			/* Update files list */
-			client->n_files = get_dir_file_info(client_folder, client->files);
-			/* Marks that there are pending changes */
-			client->pending_changes = devicesOn(client);
-		}
+		
+		/* Update files list */
+		client->n_files = get_dir_file_info(client_folder, client->files);
+		/* Marks that there are pending changes */
+		client->pending_changes[0] = TRUE;
+		client->pending_changes[1] = TRUE;
+		if(update_client == FALSE) client->pending_changes[device_index] = FALSE;		
 	}
 	/* DOWNLOAD */
 	else if(strcmp(buffer, DOWN_REQ) == 0) {
@@ -211,26 +212,24 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
        	if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
         	printf("\nERROR sending deletion confirmation");
 
-		/* DELETE ON CLIENT NEEDED*/
-		if(update_client == TRUE) {
-			/* Update files list */
-			client->n_files = get_dir_file_info(client_folder, client->files);
-			/* Marks that there are pending changes */
-			client->pending_changes = devicesOn(client);
-		}		
+		/* Update files list */
+		client->n_files = get_dir_file_info(client_folder, client->files);
+		/* Marks that there are pending changes */
+		client->pending_changes[0] = TRUE;
+		client->pending_changes[1] = TRUE;
+		if(update_client == FALSE) client->pending_changes[device_index] = FALSE;	
 	}
 	/* ANSWER CLIENT IF NEEDS TO SYNC */
 	else if(strcmp(buffer, NEED_SYNC) == 0) {
 		/* Synchronizes client if there are pending changes */
-		if(client->pending_changes > 0) {
+		if(client->pending_changes[device_index] == TRUE) {
 
 			strcpy(buffer, SYNC_REQ);
 			if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
 				printf("\nERROR requesting sync from server");
 
-			printf("\n\nPENDING CHANGES = %d", client->pending_changes);
 			sync_server(socket, client, msg_id);
-			client->pending_changes = client->pending_changes - 1;
+			client->pending_changes[device_index] = FALSE;
 		}
 		/* If there's not must tell client also */
 		else{
@@ -306,7 +305,7 @@ void* clientThread(void* connection_struct) {
 		msg_id.client = START_MSG_COUNTER;
 		/* Synchronize client with server */
 		sync_server(socket, client, &msg_id);
-		client->pending_changes = 0;
+		client->pending_changes[getDevice(client, socket)] = FALSE;
 
 		int connected = TRUE;
 		/* Waits for commands */

@@ -83,12 +83,18 @@ void *watcher(void* user) {
 					sprintf(path, "%s/%s", watch_path, event->name);
 
 					if (event->mask & (IN_CLOSE_WRITE | IN_CREATE | IN_MOVED_TO)) {
+						if(IN_CLOSE_WRITE) printf("\nIN_CLOSE_WRITE %s", event->name);
+						if(IN_CREATE) printf("\nIN_CREATE %s", event->name);
+						if(IN_MOVED_TO) printf("\nIN_MOVED_TO %s", event->name);
 						if (check_dir(path) && (event->name[0] != '.')) {
 							printf("\nRequest upload: %s to user_%s\n", event->name, user_info->id);
 
 							send_file(path, user_info, user_info->msg_id, TRUE);
 						}
 					} else if (event->mask & (IN_DELETE | IN_DELETE_SELF | IN_MOVED_FROM)) {
+						if(IN_DELETE) printf("\nIN_DELETE %s", event->name);
+						if(IN_DELETE_SELF) printf("\nIN_DELETE_SELF %s", event->name);
+						if(IN_MOVED_FROM) printf("\nIN_MOVED_FROM %s", event->name);
 						if (event->name[0] != '.') {
 							printf("\nRequest delete: %s to user_%s\n", event->name, user_info->id);
 
