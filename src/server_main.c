@@ -26,79 +26,82 @@ void start_election() {
 
 }
 
-void* serverThread(void* server_struct) {
+void* serverCom(void* server_struct) {
 	
-	struct sockaddr_in cli_addr, serv_conn1, serv_conn2;
+	struct sockaddr_in cli_addr, serv_conn;
 	char buffer[BUFFER_SIZE];
-	int sockid, zero = 0, ack = 0;
+	int sockid, new_sock, zero = 0;
 
 	puts("server thread");
 
 	s_Connection *connection = (s_Connection*) malloc(sizeof(s_Connection));
 	connection = (s_Connection*) server_struct;
-
-	sockid = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (sockid == ERROR) {
-		printf("\nError opening socket ");
-		exit(1);
-	}
-	else
+	
+	/* SOCKET USED TO COMMUNICATE AS SERVER */
+	sockid = connection->socket_id;
 		printf("\nServer socket as client %i\n", sockid);
 
 	printf("Infos: port-> %d, address-> %s\n", connection->port, connection->address);
-
-	bzero((char *) &serv_conn1, sizeof(serv_conn1));
-	serv_conn1.sin_family = AF_INET;
-	serv_conn1.sin_port = htons(connection->port);
-	bzero((char *) &serv_conn2, sizeof(serv_conn2));
-	serv_conn2.sin_family = AF_INET;
-	serv_conn2.sin_port = htons(connection->port);
+	
+	bzero((char *) &serv_conn, sizeof(serv_conn));
+	serv_conn.sin_family = AF_INET;
+	serv_conn.sin_port = htons(connection->port);
+	serv_conn.sin_addr.s_addr = inet_addr(DEFAULT_ADDRESS);
+	
 	bzero(buffer, BUFFER_SIZE -1);
 
 	if(strcmp(connection->address, DEFAULT_ADDRESS) == 0) {
-
-		serv_conn1.sin_addr.s_addr = inet_addr(BACKUP1_ADDRESS);	
-		serv_conn2.sin_addr.s_addr = inet_addr(BACKUP2_ADDRESS);
+		printf("primary\n");
+		while(TRUE) {
+			if(recv_packet(&zero, buffer, sockid, &cli_addr) == 0) 
+				printf("Received a datagram from: %s\n", buffer);
+			
+			bzero(buffer, BUFFER_SIZE -1);
+			strcpy(buffer, DEFAULT_ADDRESS);
+			if(send_packet(&zero, buffer, sockid, &cli_addr) < 0) {
+				printf("\nERROR starting coommunication with primary server\n"); 
+				exit(1);
+			}
+		}
 		
-		strcpy(buffer, DEFAULT_ADDRESS);
 	}
 	if(strcmp(connection->address, BACKUP2_ADDRESS) == 0) {
+		printf("backup2\n");
 
-		serv_conn1.sin_addr.s_addr = inet_addr(DEFAULT_ADDRESS);
-		serv_conn2.sin_addr.s_addr = inet_addr(BACKUP1_ADDRESS);
-
+		new_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	 	if (new_sock == ERROR) {
+			printf("Error opening socket\n");
+			exit(1);
+		}	
+		
 		strcpy(buffer, BACKUP2_ADDRESS);
-	}
-	if(strcmp(connection->address, BACKUP1_ADDRESS) == 0) {
-
-		serv_conn1.sin_addr.s_addr = inet_addr(DEFAULT_ADDRESS);
-		serv_conn2.sin_addr.s_addr = inet_addr(BACKUP2_ADDRESS);
-	
-		strcpy(buffer, BACKUP1_ADDRESS);
-	}
-
-	while(ack != 4){
-		printf("ack0 %d\n", ack);	
-		if(send_packet(&zero, buffer, sockid, &serv_conn1) < 0) {
+		if(send_packet(&zero, buffer, new_sock, &serv_conn) < 0) {
 			printf("\nERROR starting coommunication with backup server 1"); 
 			exit(1);
-		}ack++;printf("ack1 %d\n", ack);
-		if(send_packet(&zero, buffer, sockid, &serv_conn2) < 0) {
-			printf("\nERROR starting coommunication with backup server 2"); 
-			exit(1);
-		}ack++;printf("ack2 %d\n", ack);
-		bzero(buffer, BUFFER_SIZE -1);
-		if(recv_packet(&zero, buffer, connection->socket_id, &cli_addr) == 0) {
-			printf("Received a datagram from: %s\n", buffer);
-			ack++; printf("ack3 %d\n", ack);
 		}
 		bzero(buffer, BUFFER_SIZE -1);
-		if(recv_packet(&zero, buffer, connection->socket_id, &cli_addr) == 0) {
+		if(recv_packet(&zero, buffer, new_sock, &cli_addr) == 0) 
 			printf("Received a datagram from: %s\n", buffer);
-			ack++; printf("ack4 %d\n", ack);
-		}
 		
-		sleep(5);	
+
+	}
+	if(strcmp(connection->address, BACKUP1_ADDRESS) == 0) {
+		printf("backup1\n");
+
+		new_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	 	if (new_sock == ERROR) {
+			printf("Error opening socket\n");
+			exit(1);
+		}	
+		
+		strcpy(buffer, BACKUP1_ADDRESS);
+		if(send_packet(&zero, buffer, new_sock, &serv_conn) < 0) {
+			printf("\nERROR starting coommunication with backup server 1"); 
+			exit(1);
+		}
+		bzero(buffer, BUFFER_SIZE -1);
+		if(recv_packet(&zero, buffer, new_sock, &cli_addr) == 0) 
+			printf("Received a datagram from: %s\n", buffer);
 	}
 		
 	return 0;	
@@ -342,7 +345,7 @@ void* clientThread(void* connection_struct) {
 	puts("Reached control thread");
 	struct sockaddr_in *cli_addr;		
 
-    char buffer[BUFFER_SIZE];
+    	char buffer[BUFFER_SIZE];
 	int socket;
 	char client_id[MAXNAME];
 	//char *client_ip;
@@ -459,7 +462,7 @@ void wait_connection(char* address, int sockid) {
 		sem_wait(&semaphore);
 		
 		/* inet_ntoa converts the network address into a string */
-      	client_ip = inet_ntoa(cli_addr.sin_addr); 
+      		client_ip = inet_ntoa(cli_addr.sin_addr); 
 
 		/* Starts a new client connection */
 		Connection *connection = malloc(sizeof(*connection));
@@ -491,7 +494,7 @@ int main(int argc, char *argv[]) {
 
 	int port, sockid;
 	char *address, *process_server;
-	pthread_t thread_server;
+	//pthread_t thread_server;
 
 	/* Initializing semaphore to admite a defined number of users */
 	sem_init(&semaphore, 0, MAX_CLIENTS);
@@ -533,10 +536,6 @@ int main(int argc, char *argv[]) {
 	connect->address = address;
 	connect->port = port;
 
-	/* Creates thread to control server communication */
-	if(pthread_create(&thread_server, NULL, serverThread, (void*) connect) < 0)
-		printf("Error on creating thread\n");
-
 	/*while (1) {
 		if(strcmp(process_server, BACKUP_SERVER) == 0) {
 			printf("IM IN MIAMI\n");
@@ -559,8 +558,8 @@ int main(int argc, char *argv[]) {
 
 		/* Creates thread to control server communication */
 		connect->socket_id = sockid;
-		if(pthread_create(&thread_server, NULL, serverThread, (void*) connect) < 0)
-			printf("Error on creating thread\n");
+		if(serverCom((void*) connect) < 0)
+			printf("Error on server communication\n");
 
 		/* Checking if the server dir exists
 			-> if not, creates it using mkdir with 0777 (full access) permission
