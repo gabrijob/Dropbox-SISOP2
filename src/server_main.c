@@ -2,11 +2,107 @@
 #define SERVER_MAIN_CODE
 
 #include "dropboxServer.h"
+#define DEFAULT_SERVER "primary"
+#define BACKUP_SERVER "backup"
+#define BACKUP1_ADDRESS "127.0.0.2"
+#define BACKUP2_ADDRESS "127.0.0.3"
 
 /*   Global variables   */
 ClientList clients_list;
 ServerInfo serverInfo;
 sem_t semaphore;
+
+
+struct server_connection{
+	int port;
+	int socket_id;
+	char *address;
+};
+typedef struct server_connection s_Connection;
+
+void start_election() {
+
+	puts("election reached");
+
+}
+
+void* serverThread(void* server_struct) {
+	
+	struct sockaddr_in cli_addr, serv_conn1, serv_conn2;
+	char buffer[BUFFER_SIZE];
+	int sockid, zero = 0, ack = 0;
+
+	puts("server thread");
+
+	s_Connection *connection = (s_Connection*) malloc(sizeof(s_Connection));
+	connection = (s_Connection*) server_struct;
+
+	sockid = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (sockid == ERROR) {
+		printf("\nError opening socket ");
+		exit(1);
+	}
+	else
+		printf("\nServer socket as client %i\n", sockid);
+
+	printf("Infos: port-> %d, address-> %s\n", connection->port, connection->address);
+
+	bzero((char *) &serv_conn1, sizeof(serv_conn1));
+	serv_conn1.sin_family = AF_INET;
+	serv_conn1.sin_port = htons(connection->port);
+	bzero((char *) &serv_conn2, sizeof(serv_conn2));
+	serv_conn2.sin_family = AF_INET;
+	serv_conn2.sin_port = htons(connection->port);
+	bzero(buffer, BUFFER_SIZE -1);
+
+	if(strcmp(connection->address, DEFAULT_ADDRESS) == 0) {
+
+		serv_conn1.sin_addr.s_addr = inet_addr(BACKUP1_ADDRESS);	
+		serv_conn2.sin_addr.s_addr = inet_addr(BACKUP2_ADDRESS);
+		
+		strcpy(buffer, DEFAULT_ADDRESS);
+	}
+	if(strcmp(connection->address, BACKUP2_ADDRESS) == 0) {
+
+		serv_conn1.sin_addr.s_addr = inet_addr(DEFAULT_ADDRESS);
+		serv_conn2.sin_addr.s_addr = inet_addr(BACKUP1_ADDRESS);
+
+		strcpy(buffer, BACKUP2_ADDRESS);
+	}
+	if(strcmp(connection->address, BACKUP1_ADDRESS) == 0) {
+
+		serv_conn1.sin_addr.s_addr = inet_addr(DEFAULT_ADDRESS);
+		serv_conn2.sin_addr.s_addr = inet_addr(BACKUP2_ADDRESS);
+	
+		strcpy(buffer, BACKUP1_ADDRESS);
+	}
+
+	while(ack != 4){
+		printf("ack0 %d\n", ack);	
+		if(send_packet(&zero, buffer, sockid, &serv_conn1) < 0) {
+			printf("\nERROR starting coommunication with backup server 1"); 
+			exit(1);
+		}ack++;printf("ack1 %d\n", ack);
+		if(send_packet(&zero, buffer, sockid, &serv_conn2) < 0) {
+			printf("\nERROR starting coommunication with backup server 2"); 
+			exit(1);
+		}ack++;printf("ack2 %d\n", ack);
+		bzero(buffer, BUFFER_SIZE -1);
+		if(recv_packet(&zero, buffer, connection->socket_id, &cli_addr) == 0) {
+			printf("Received a datagram from: %s\n", buffer);
+			ack++; printf("ack3 %d\n", ack);
+		}
+		bzero(buffer, BUFFER_SIZE -1);
+		if(recv_packet(&zero, buffer, connection->socket_id, &cli_addr) == 0) {
+			printf("Received a datagram from: %s\n", buffer);
+			ack++; printf("ack4 %d\n", ack);
+		}
+		
+		sleep(5);	
+	}
+		
+	return 0;	
+}
 
 
 void list_server(int sockid, Client* client, struct sockaddr_in *cli_addr, MSG_ID *msg_id) {
@@ -394,40 +490,78 @@ void wait_connection(char* address, int sockid) {
 int main(int argc, char *argv[]) {
 
 	int port, sockid;
-	char *address;
+	char *address, *process_server;
+	pthread_t thread_server;
 
 	/* Initializing semaphore to admite a defined number of users */
 	sem_init(&semaphore, 0, MAX_CLIENTS);
 
-	if (argc > 3) {
+	if (argc > 4) {
 		puts("Invalid number of arguments!");
-		puts("Expected: './dropboxClient address port' or only './dropboxClient'");
+		puts("Expected: './dropboxClient address port primary/backup' or only './dropboxClient'");
 		puts("In the second case the values of address and port will be set to default (see headers)");
 
 		return ERROR;
 	}
 
-	address = malloc(strlen(DEFAULT_ADDRESS));	
+	address = malloc(strlen(DEFAULT_ADDRESS));
+	process_server = malloc(strlen(DEFAULT_SERVER));
 
 	/* Parsig entries */
-	if (argc == 3) {
+	if (argc == 4) {
 		if (strlen(argv[1]) != strlen(DEFAULT_ADDRESS)) {
 			free(address);
 			address = malloc(strlen(argv[1]));
+		}
+		if (strlen(argv[3]) != strlen(DEFAULT_SERVER)) {
+			free(process_server);
+			process_server = malloc(strlen(argv[3]));
 		}  
 		strcpy(address, argv[1]);
 		port = atoi(argv[2]);
+		strcpy(process_server, argv[3]);
 			
 	} else {
 		strcpy(address, DEFAULT_ADDRESS);
 		port = DEFAULT_PORT;
+		strcpy(process_server, DEFAULT_SERVER);
 	}
 	/* End of parsing */
+	
+	
+	s_Connection *connect = malloc(sizeof(*connect));
+	connect->address = address;
+	connect->port = port;
+
+	/* Creates thread to control server communication */
+	if(pthread_create(&thread_server, NULL, serverThread, (void*) connect) < 0)
+		printf("Error on creating thread\n");
+
+	/*while (1) {
+		if(strcmp(process_server, BACKUP_SERVER) == 0) {
+			printf("IM IN MIAMI\n");
+			break;
+		}
+		else if(strcmp(process_server, DEFAULT_SERVER) == 0)
+			break;
+		else {
+			printf("ERROR process type is not primary/backup...exiting\n");
+			exit(1);
+		}
+	}
+
+	puts(process_server);*/
 
 	/* Creating socket and binding server */
 	sockid = open_server(address, port);
 	if (sockid != ERROR) {
 		printf("\n-----Server information-----\nAddress: %s\nMain port: %d\nMain socket: %d\n----------------------------\n", address, port, sockid);
+
+		/* Creates thread to control server communication */
+		connect->socket_id = sockid;
+		if(pthread_create(&thread_server, NULL, serverThread, (void*) connect) < 0)
+			printf("Error on creating thread\n");
+
 		/* Checking if the server dir exists
 			-> if not, creates it using mkdir with 0777 (full access) permission
 			-> uses 'sys/stat.h' lib */
