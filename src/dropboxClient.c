@@ -36,12 +36,19 @@ int login_server(char *host, int port, UserInfo *user, MSG_ID *msg_id) {
 	
 	int zero = START_MSG_COUNTER;
 	/* Sends first message to server */
-	strcpy(buffer, user->id);
+	strcpy(buffer, CLI_COM_TYPE);
 	if(send_packet(&zero, buffer, sockid, &serv_conn) < 0) {
 		printf("\nERROR starting connection with server"); 
 		return ERROR;
 	}
 
+	/* Sends id */
+	zero = START_MSG_COUNTER;
+	strcpy(buffer, user->id);
+	if(send_packet(&zero, buffer, sockid, &serv_conn) < 0) {
+		printf("\nERROR starting connection with server"); 
+		return ERROR;
+	}
 
 	zero = START_MSG_COUNTER;
 	/* Receives new port for connection */

@@ -4,6 +4,41 @@
 #include "dropboxUtil.h"
 
 
+int new_server_port(char *address, int *socket_id, int *port) {
+	struct sockaddr_in server;
+	int sockid;
+	int new_port = DYN_PORT_START;
+	
+  	/* Creating the socket */
+	sockid = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+ 	if (sockid == ERROR) {
+		printf("Error opening socket\n");
+		return ERROR;
+	}
+
+	/* Get new server based on the new port*/
+	bzero((char *) &server, sizeof(server));
+	server.sin_family = AF_INET; 
+	server.sin_port = htons(new_port); 
+	server.sin_addr.s_addr = inet_addr(address);
+	
+	/* Keeps trying to bind the socket to a port until it finds one available */
+  	while (bind(sockid, (struct sockaddr *) &server, sizeof(server)) == ERROR) { 
+		new_port++;
+		server.sin_port = htons(new_port);
+		if(new_port > DYN_PORT_END) {
+			perror("Falha na nomeação do socket\n");
+			return ERROR;
+		}
+  	}
+
+	printf("\nNew port: %d & New socket: %d\n", new_port, sockid); //DEGBUG
+	*socket_id = sockid;
+	*port = new_port;
+
+	return SUCCESS;	
+}
+
 int getFileIndex(char *filename, FileInfo files[], int number_of_files) {
 	int i;
 	

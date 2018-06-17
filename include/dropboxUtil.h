@@ -45,6 +45,10 @@
 
 /* Communication constants */
 #define START_MSG_COUNTER 0
+#define CLI_COM_TYPE "CLIENT COMMUNICATION"
+#define SVR_COM_TYPE "SERVER COMMUNICATION"
+#define DEFAULT_SERVER "--primary"
+#define BACKUP_SERVER "--backup"
 
 #define END_REQ "END SESSION REQUEST"
 #define UP_REQ "FILE UPLOAD REQUEST"
@@ -133,6 +137,7 @@ typedef struct dir_content {
 } DirContent;
 
 
+int new_server_port(char *address, int *socket_id, int *port);
 int getFileIndex(char *filename, FileInfo files[], int number_of_files);
 int get_dir_file_info(char * path, FileInfo files[]);
 void getFileExtension(const char *filename, char* extension);
