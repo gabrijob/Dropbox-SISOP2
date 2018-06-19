@@ -9,6 +9,7 @@
 ClientList clients_list;
 ServerInfo serverInfo;
 sem_t semaphore;
+//CLIENT STRUCTS MUTEX
 
 
 
@@ -248,6 +249,9 @@ void* clientThread(void* connection_struct) {
 		//-------FOR DEBUG-------//
 		printUserList(clients_list);
 
+		/* Register new client for backup servers*/
+		register_client_login(client_id, cli_addr);
+
 
 	} else {
 		/* Adds a new device for the client */
@@ -327,10 +331,10 @@ void wait_connection(char* address, int sockid) {
 		bzero(buffer, BUFFER_SIZE -1);
 		zero = START_MSG_COUNTER;
 		if(recv_packet(&zero, buffer, sockid, &conn_addr) == 0)
-			printf("Received a datagram: %s", buffer);
+			printf("\nReceived a datagram: %s", buffer);
 
 		if(strcmp(buffer, SVR_COM_TYPE) == 0) {
-			new_backup_sv_conn(address, sockid, &conn_addr);
+			new_backup_sv_conn(address, sockid);
 		}
 		else if(strcmp(buffer, CLI_COM_TYPE) == 0) {
 			/* Receive client id */
@@ -341,15 +345,14 @@ void wait_connection(char* address, int sockid) {
 
 			/* Updates semaphore when a new connection starts */		
 			sem_wait(&semaphore);
-			printf("\nAQUI?1");
+
 			/* inet_ntoa converts the network address into a string */
 			client_ip = inet_ntoa(conn_addr.sin_addr); 
 
-			printf("\nAQUI?");
 			/* Starts a new client connection */
 			Connection *connection = (Connection*) malloc(sizeof(Connection));
 			connection->client_address = &conn_addr;
-			printf("\nOU AQUI?");
+
 			int new_sockid, new_port;
 			if (new_server_port(address, &new_sockid, &new_port) == SUCCESS) {
 				connection->socket_id = new_sockid;
@@ -432,11 +435,14 @@ int main(int argc, char *argv[]) {
 			}
 		}
 
-		/* Runs server */
+		/* Runs backup server */
 		if(strcmp(process_server, BACKUP_SERVER) == 0)
-			run_backup(address, port, primary_server_address, primary_server_port);
-		else if(strcmp(process_server, DEFAULT_SERVER) == 0)		
-			wait_connection(address, sockid);
+			run_backup(sockid, address, port, primary_server_address, primary_server_port);
+		/* Runs primary server */
+		else if(strcmp(process_server, DEFAULT_SERVER) == 0) {		
+			init_server_structs(0, port, address);
+			wait_connection(address, sockid);		
+		}
 	}
 
 	return 0;

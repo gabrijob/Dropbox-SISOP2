@@ -13,7 +13,7 @@ void synchronize_client(int sockid, Client* client_sync, MSG_ID* msg_id) {
 
 	printf("\nIniciando sincronização do cliente.\n");	//debug
 
-	/* Receive answer from client */
+	/* Receive start message from client */
 	bzero(buffer, BUFFER_SIZE);
 	if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
 		printf("\nERROR receiving start message from client");	
