@@ -21,6 +21,8 @@
 #include <pthread.h>
 #include <semaphore.h>
 #include <dirent.h>
+#include <signal.h>
+#include <setjmp.h>
 
 #include "udp_assist.h"
 

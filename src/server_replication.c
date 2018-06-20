@@ -10,11 +10,20 @@ int last_new_id = 0;
 s_Connection* serversList[MAXSERVERS]; // id do servidor é sua posição no array
 int last_client_index = 0;
 C_DATA* clientsList[MAX_CLIENTS];
-
 int is_new_backup[MAXSERVERS];
 int is_new_client[MAX_CLIENTS];
 
+static sigjmp_buf recv_timed_out;
+
 //-------------------------------------------------------------------------------------------------------------
+
+void timeout_handler(int sig) {
+
+	signal(SIGALRM, SIG_DFL);
+	siglongjmp(recv_timed_out, 1);
+
+}
+
 
 int init_server_connection(int port, char* address, int *sockid ,struct sockaddr_in *sv_conn) {
 
@@ -75,15 +84,14 @@ void register_client_login(char *id, struct sockaddr_in *cli_addr) {
 /* Indicates to whom primary server must send the new backup server data */
 void signal_new_backup() {
 	for(int i = 0; i < last_new_id; i++) {
-		if((serversList[i] != NULL) && (serversList[i]->sid != -1) && (i != my_id)) {
+		if((serversList[i] != NULL) && (serversList[i]->sid != -1) && (i != my_id))
 			is_new_backup[i] = TRUE;
-		}
 	}
 }
 
 void new_backup_sv_conn(char* my_address, int old_sockid) {
 	int zero;
-    char buffer[BUFFER_SIZE];
+    	char buffer[BUFFER_SIZE];
 
 	struct sockaddr_in sv_addr;
 
@@ -108,12 +116,12 @@ void new_backup_sv_conn(char* my_address, int old_sockid) {
 
 	connection->port = atoi(buffer);
 
-    int new_sockid, new_port;		
+    	int new_sockid, new_port;		
 	if (new_server_port(my_address, &new_sockid, &new_port) == SUCCESS) {
 		connection->socket = new_sockid;
 
 		last_new_id++;
-        connection->sid = last_new_id;
+        	connection->sid = last_new_id;
 		serversList[last_new_id] = connection;
 		signal_new_backup();
 
@@ -260,12 +268,61 @@ int send_clients_to_new(int sockid) {
 	return SUCCESS;
 }
 
+void send_test_msg () {
+
+	char buffer[BUFFER_SIZE];
+	sprintf(buffer, "%s", TST_CON);
+	
+	for (int i = 1; i<=last_new_id; i++)
+		if(serversList[i] != NULL) {
+			printf("\nserver list %d not null", i);		//debug
+	
+			struct sockaddr_in backup_addr;
+			s_Connection *to_backup = serversList[i];
+
+			int to_socket = to_backup->socket;
+			int to_port = to_backup->port;
+			char to_address[MAXNAME];
+			strcpy(to_address, to_backup->address);
+	
+			/* Create struct for server socket address */
+			if(init_server_connection(to_port, to_address, NULL, &backup_addr) == ERROR) {
+				printf("\nERROR initiating server connection...exiting");
+				exit(1);
+			}
+			/* Send new backup server signal to backup server */
+			int zero = START_MSG_COUNTER;
+			if(send_packet(&zero, buffer, to_socket, &backup_addr) < 0)
+				printf("\nERROR sending sid to backup server");
+		}
+
+	/*if(serversList[2] != NULL) {
+		printf("\nserver list 2 not null");
+
+		struct sockaddr_in backup_addr2;
+		s_Connection *to_backup2 = serversList[2];
+
+		int to_socket2 = to_backup2->socket;
+		int to_port2 = to_backup2->port;
+		char to_address2[MAXNAME];
+		strcpy(to_address2, to_backup2->address);
+
+		
+		if(init_server_connection(to_port2, to_address2, NULL, &backup_addr2) == ERROR) {
+			printf("\nERROR initiating server connection");
+			exit(1);
+		}
+		int zero = START_MSG_COUNTER;
+		if(send_packet(&zero, buffer, to_socket2, &backup_addr2) < 0)
+			printf("\nERROR sending sid to backup server");
+	}*/
+}
 
 
 int send_new_server_to_backup(int to_sid) {
 	int zero;
 	char buffer[BUFFER_SIZE];
-
+	
 	struct sockaddr_in backup_addr;
 
 	s_Connection *to_backup = serversList[to_sid];
@@ -296,6 +353,7 @@ int send_new_server_to_backup(int to_sid) {
 	/* Send new backup server signal to backup server */
 	sprintf(buffer, "%s", NS_SIGNAL);
 	zero = START_MSG_COUNTER;
+	
 	if(send_packet(&zero, buffer, to_socket, &backup_addr) < 0)
 		printf("\nERROR sending sid to backup server");	
 
@@ -327,25 +385,26 @@ int send_new_server_to_backup(int to_sid) {
  * Thread de comunicação do servidor primario com um servidor de backup 
  **/
 void* serverThread(void* connection_struct) {
-
+	
 	s_Connection *connection = (s_Connection*) connection_struct;
 	
 	int sockid = connection->socket;
 	int sid = connection->sid;
 
-    send_servers_to_new(sockid);
+    	send_servers_to_new(sockid);
 	serversListPrint(); 			//debug
 	send_clients_to_new(sockid);
 	clientsListPrint();				//debug
 
 	while(TRUE)  {
+		
 		if(is_new_backup[sid]) 
 			send_new_server_to_backup(sid);
-
-		//if(NEW_CLIENT) send_new_client_to_backup		
-	}	
-
-
+		else {
+			sleep(2);
+			send_test_msg();
+		}		
+	}
     return NULL;
 }
 
@@ -406,7 +465,7 @@ void run_backup(int sockid, char* address, int port, char* primary_server_addres
 		return;
 	}
 
-    printf("\nNEW PORT: %s\n", buffer);
+    	printf("\nNEW PORT: %s\n", buffer);
 	primary_sv_conn.sin_port = htons(atoi(buffer)); //updates default port with port received from the primary server
 
 	zero = START_MSG_COUNTER;
@@ -423,7 +482,7 @@ void run_backup(int sockid, char* address, int port, char* primary_server_addres
 	
 	recv_servers_list(primary_sockid, &primary_sv_conn);
 	recv_clients_list(primary_sockid, &primary_sv_conn);
-	wait_contact(sockid);
+	wait_contact(sockid); 
 }
 
 /**
@@ -525,7 +584,7 @@ int recv_clients_list(int sockid, struct sockaddr_in *prim_sv){
 		printf("\nERROR receiving size of clients list");
 		return ERROR;
 	} 
-
+	
 	c_list_size = atoi(buffer);
 	last_client_index = c_list_size;
 
@@ -627,21 +686,25 @@ void wait_contact(int sockid) {
 
 	struct sockaddr_in conn_addr;
 
-
 	while(TRUE) {
 
-		/* Receive a order */
+		/* Receive an order */
 		bzero(buffer, BUFFER_SIZE -1);
 		zero = START_MSG_COUNTER;
 		if(recv_packet(&zero, buffer, sockid, &conn_addr) == 0)
-			printf("\nReceived a datagram: %s", buffer);
+			printf("\nReceived datagram %s\n", buffer);
 
 		/* NEW BACKUP SERVER */
 		if(strcmp(buffer, NS_SIGNAL) == 0) { 
 			recv_new_server(sockid);
 			serversListPrint(); 			//debug
 		}
-
+		
+		//if(strcmp(buffer, TST_CON) == 0) { 
+			//recv_new_server(sockid);
+			//serversListPrint(); 
+						
+		//}
 		//if(NB_SIGNAL) recv_new_backup
 		//if(VOTE_SIGAL) start_election
 		
@@ -669,7 +732,7 @@ void start_election() {
 	s_Connection *connection = (s_Connection*) malloc(sizeof(s_Connection));
 	connection = (s_Connection*) server_struct;
 	
-	/* SOCKET USED TO COMMUNICATE AS SERVER 
+	// SOCKET USED TO COMMUNICATE AS SERVER 
 	sockid = connection->socket_id;
 		printf("\nServer socket as client %i\n", sockid);
 
