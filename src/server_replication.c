@@ -13,14 +13,17 @@ C_DATA* clientsList[MAX_CLIENTS];
 int is_new_backup[MAXSERVERS];
 int is_new_client[MAX_CLIENTS];
 
-static sigjmp_buf recv_timed_out;
+//static sigjmp_buf recv_timed_out;
 
 //-------------------------------------------------------------------------------------------------------------
 
 void timeout_handler(int sig) {
 
 	signal(SIGALRM, SIG_DFL);
-	siglongjmp(recv_timed_out, 1);
+	printf("\n-------Primary killed--------\n");
+	/* starts election */
+	if (start_election() == ERROR)
+		printf("\nNew primary could not be selected");
 
 }
 
@@ -296,26 +299,6 @@ void send_test_msg () {
 				printf("\nERROR sending sid to backup server");
 		}
 
-	/*if(serversList[2] != NULL) {
-		printf("\nserver list 2 not null");
-
-		struct sockaddr_in backup_addr2;
-		s_Connection *to_backup2 = serversList[2];
-
-		int to_socket2 = to_backup2->socket;
-		int to_port2 = to_backup2->port;
-		char to_address2[MAXNAME];
-		strcpy(to_address2, to_backup2->address);
-
-		
-		if(init_server_connection(to_port2, to_address2, NULL, &backup_addr2) == ERROR) {
-			printf("\nERROR initiating server connection");
-			exit(1);
-		}
-		int zero = START_MSG_COUNTER;
-		if(send_packet(&zero, buffer, to_socket2, &backup_addr2) < 0)
-			printf("\nERROR sending sid to backup server");
-	}*/
 }
 
 
@@ -691,8 +674,15 @@ void wait_contact(int sockid) {
 		/* Receive an order */
 		bzero(buffer, BUFFER_SIZE -1);
 		zero = START_MSG_COUNTER;
-		if(recv_packet(&zero, buffer, sockid, &conn_addr) == 0)
+
+		//if nothing is received in 2 secs the server was probably killed
+		signal(SIGALRM, timeout_handler);
+		alarm(RECV_TIMEOUT); 
+		if(recv_packet(&zero, buffer, sockid, &conn_addr) == 0) {
 			printf("\nReceived datagram %s\n", buffer);
+			alarm(0);
+			signal(SIGALRM, SIG_DFL);
+		}
 
 		/* NEW BACKUP SERVER */
 		if(strcmp(buffer, NS_SIGNAL) == 0) { 
@@ -715,9 +705,10 @@ void wait_contact(int sockid) {
 
 }
 
-void start_election() {
+int start_election() {
 
 	puts("election reached");
+	return SUCCESS;
 
 }
 

@@ -8,7 +8,7 @@
 #define BACKUP1_ADDRESS "127.0.0.2"
 #define BACKUP2_ADDRESS "127.0.0.3"
 
-#define RECV_TIMEOUT 5
+#define RECV_TIMEOUT 3
 
 #define SL_REQ "SERVERS LIST REQUEST"
 #define CL_REQ "CLIENTS LIST REQUEST"
@@ -46,6 +46,8 @@ int recv_servers_list(int sockid, struct sockaddr_in *prim_sv);
 int recv_clients_list(int sockid, struct sockaddr_in *prim_sv);
 int recv_new_server(int sockid);
 void wait_contact(int sockid);
+void send_test_msg();
+int start_election();
 
 void serversListPrint();
 void clientsListPrint();
