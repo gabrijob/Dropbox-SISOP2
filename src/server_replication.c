@@ -13,7 +13,7 @@ C_DATA* clientsList[MAX_CLIENTS];
 int is_new_backup[MAXSERVERS];
 int is_new_client[MAX_CLIENTS];
 
-//static sigjmp_buf recv_timed_out;
+static sigjmp_buf recv_timed_out;
 
 //-------------------------------------------------------------------------------------------------------------
 
@@ -21,10 +21,7 @@ void timeout_handler(int sig) {
 
 	signal(SIGALRM, SIG_DFL);
 	printf("\n-------Primary killed--------\n");
-	/* starts election */
-	if (start_election() == ERROR)
-		printf("\nNew primary could not be selected");
-
+	siglongjmp(recv_timed_out, 1);
 }
 
 
@@ -141,7 +138,7 @@ void new_backup_sv_conn(char* my_address, int old_sockid) {
 			printf("\nERROR sending new port to backup server");
 
 		/* Creates thread to communicate with backups */
-    	if(pthread_create(&thread_id, NULL, serverThread, (void*) connection) < 0)
+    		if(pthread_create(&thread_id, NULL, serverThread, (void*) connection) < 0)
 			printf("Error on creating thread\n");
 
 	}
@@ -298,7 +295,6 @@ void send_test_msg () {
 			if(send_packet(&zero, buffer, to_socket, &backup_addr) < 0)
 				printf("\nERROR sending sid to backup server");
 		}
-
 }
 
 
@@ -394,12 +390,12 @@ void* serverThread(void* connection_struct) {
 
 //====================================FUNÇÕES SERVIDOR BACKUP=================================================================
 void run_backup(int sockid, char* address, int port, char* primary_server_address, int primary_server_port) {
-    int primary_sockid;
+    	int primary_sockid;
 	char buffer[BUFFER_SIZE];
 
 	struct sockaddr_in primary_sv_conn, from;
 		
-    primary_sockid = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    	primary_sockid = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (primary_sockid == ERROR) {
 		printf("\nError opening socket ");
 		return;
@@ -674,8 +670,15 @@ void wait_contact(int sockid) {
 		/* Receive an order */
 		bzero(buffer, BUFFER_SIZE -1);
 		zero = START_MSG_COUNTER;
-
-		//if nothing is received in 2 secs the server was probably killed
+		
+		/* Save current state of process in the stack */
+		if (sigsetjmp(recv_timed_out, 1)) {
+			/* starts election */
+			if (start_election(sockid) == ERROR)
+				printf("\nNew primary could not be selected");
+		}
+		
+		//if nothing is received in 3 secs the server was probably killed
 		signal(SIGALRM, timeout_handler);
 		alarm(RECV_TIMEOUT); 
 		if(recv_packet(&zero, buffer, sockid, &conn_addr) == 0) {
@@ -705,100 +708,65 @@ void wait_contact(int sockid) {
 
 }
 
-int start_election() {
+int start_election(int n_sock) {
 
 	puts("election reached");
-	return SUCCESS;
+	int n_backups = last_new_id;
+	int speaker = 0;
 
-}
+	for (int i = 1; i<=n_backups; i++)
+		if(serversList[i] != NULL) {
+			speaker = i;			
+			break;
+		}
+	for (int j = (speaker+1); j<=n_backups; j++)
+		if(serversList[j] != NULL) {
+			if (my_id == speaker) {
+		
+				int sockid;
+				char buffer[BUFFER_SIZE];
+				struct sockaddr_in sv_conn;
+		
+			    	sockid = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+				if (sockid == ERROR) {
+					printf("\nError opening socket in start_election()");
+					return ERROR;
+				}
 
-/*void* serverCom(void* server_struct) {
-	
-	struct sockaddr_in cli_addr, serv_conn;
-	char buffer[BUFFER_SIZE];
-	int sockid, new_sock, zero = 0;
+				bzero((char *) &sv_conn, sizeof(struct sockaddr_in));
+				sv_conn.sin_family = AF_INET;
+				sv_conn.sin_port = htons(serversList[j]->port);
+				sv_conn.sin_addr.s_addr = inet_addr(serversList[j]->address);
 
-	puts("server thread");
+				printf("\nStarting connection with backup server at %s/%d", serversList[j]->address, serversList[j]->port);
 
-	s_Connection *connection = (s_Connection*) malloc(sizeof(s_Connection));
-	connection = (s_Connection*) server_struct;
-	
-	// SOCKET USED TO COMMUNICATE AS SERVER 
-	sockid = connection->socket_id;
-		printf("\nServer socket as client %i\n", sockid);
+				int zero = START_MSG_COUNTER;
+				bzero(buffer, BUFFER_SIZE -1);
+				strcpy(buffer, DM);
+				/* Send */				
+				if(send_packet(&zero, buffer, sockid, &sv_conn) < 0) 
+					printf("\nERROR starting connection with primary server");
+				//wait
+			}
 
-	printf("Infos: port-> %d, address-> %s\n", connection->port, connection->address);
-	
-	bzero((char *) &serv_conn, sizeof(serv_conn));
-	serv_conn.sin_family = AF_INET;
-	serv_conn.sin_port = htons(DEFAULT_PORT);
-	serv_conn.sin_addr.s_addr = inet_addr(DEFAULT_ADDRESS);
-	
-	bzero(buffer, BUFFER_SIZE -1);
+			else if (my_id == j) {
+				
+				char buffer[BUFFER_SIZE];
+				struct sockaddr_in sv_conn;
 
-	if(strcmp(connection->address, DEFAULT_ADDRESS) == 0) {
-		printf("primary\n");
-		while(TRUE) {
-			zero = 0;
-			if(recv_packet(&zero, buffer, sockid, &cli_addr) == 0) 
-				printf("Received a datagram from: %s\n", buffer);
-			
-			bzero(buffer, BUFFER_SIZE -1);
-			strcpy(buffer, DEFAULT_ADDRESS);
-			zero = 0;
-			if(send_packet(&zero, buffer, sockid, &cli_addr) < 0) {
-				printf("\nERROR starting coommunication with primary server\n"); 
-				exit(1);
+				int zero = START_MSG_COUNTER;
+				bzero(buffer, BUFFER_SIZE -1);
+				if(recv_packet(&zero, buffer, n_sock, &sv_conn) == 0)                  						printf("Received backup request for %s", buffer);
+				else {
+					printf("\nERROR receiving democracy request");
+					return ERROR;
+				}					
+				//wait
 			}
 		}
-		
-	}
-	if(strcmp(connection->address, BACKUP2_ADDRESS) == 0) {
-		printf("backup2\n");
 
-		new_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	 	if (new_sock == ERROR) {
-			printf("Error opening socket\n");
-			exit(1);
-		}	
-		
-		strcpy(buffer, BACKUP2_ADDRESS);
-		zero = 0;
-		if(send_packet(&zero, buffer, new_sock, &serv_conn) < 0) {
-			printf("\nERROR starting coommunication with backup server 1"); 
-			exit(1);
-		}
-		bzero(buffer, BUFFER_SIZE -1);
-		zero = 0;
-		if(recv_packet(&zero, buffer, new_sock, &cli_addr) == 0) 
-			printf("Received a datagram from: %s\n", buffer);
-		
-
-	}
-	if(strcmp(connection->address, BACKUP1_ADDRESS) == 0) {
-		printf("backup1\n");
-
-		new_sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	 	if (new_sock == ERROR) {
-			printf("Error opening socket\n");
-			exit(1);
-		}	
-		
-		strcpy(buffer, BACKUP1_ADDRESS);
-		zero = 0;
-		if(send_packet(&zero, buffer, new_sock, &serv_conn) < 0) {
-			printf("\nERROR starting coommunication with backup server 1"); 
-			exit(1);
-		}
-		bzero(buffer, BUFFER_SIZE -1);
-		zero = 0;
-		if(recv_packet(&zero, buffer, new_sock, &cli_addr) == 0) 
-			printf("Received a datagram from: %s\n", buffer);
-	}
-		
-	return 0;	
-}*/
-
+	return SUCCESS;
+}
 
 //====================================FUNÇÕES DEBUG=================================================================
 
