@@ -12,18 +12,33 @@ int last_client_index = 0;
 C_DATA* clientsList[MAX_CLIENTS];
 int is_new_backup[MAXSERVERS];
 int is_new_client[MAX_CLIENTS];
-
+int primary_killed = FALSE;
 static sigjmp_buf recv_timed_out;
+static sigjmp_buf recv_timed_out2;
+static sigjmp_buf recv_timed_out3;
 
-//-------------------------------------------------------------------------------------------------------------
 
+/* Timeout handler functions */
 void timeout_handler(int sig) {
 
-	signal(SIGALRM, SIG_DFL);
-	printf("\n-------Primary killed--------\n");
-	siglongjmp(recv_timed_out, 1);
+	signal(SIGALRM, SIG_DFL);	
+	if(primary_killed == FALSE) {
+		printf("\n-------Primary killed--------\n");
+		siglongjmp(recv_timed_out, 1);
+	}
+}
+void timeout_backup_handler(int sig) {
+
+	signal(SIGALRM, SIG_DFL);	
+	siglongjmp(recv_timed_out2, 1);
+}
+void timeout_backup_handler2(int sig) {
+
+	signal(SIGALRM, SIG_DFL);	
+	siglongjmp(recv_timed_out3, 1);
 }
 
+//-------------------------------------------------------------------------------------------------------------
 
 int init_server_connection(int port, char* address, int *sockid ,struct sockaddr_in *sv_conn) {
 
@@ -292,8 +307,20 @@ void send_test_msg () {
 			}
 			/* Send new backup server signal to backup server */
 			int zero = START_MSG_COUNTER;
+
+			/* If backup does not respond, handler */
+			if (sigsetjmp(recv_timed_out3, 1)) {
+				serversList[i] = NULL;
+				printf("\nBackup killed");				
+			}
+	
+			//if can't send anything in 3 secs the backup was probably killed
+			signal(SIGALRM, timeout_backup_handler2);
+			alarm(RECV_TIMEOUT); 
 			if(send_packet(&zero, buffer, to_socket, &backup_addr) < 0)
 				printf("\nERROR sending sid to backup server");
+			alarm(0);
+			signal(SIGALRM, SIG_DFL);
 		}
 }
 
@@ -674,6 +701,7 @@ void wait_contact(int sockid) {
 		/* Save current state of process in the stack */
 		if (sigsetjmp(recv_timed_out, 1)) {
 			/* starts election */
+			primary_killed = TRUE;
 			if (start_election(sockid) == ERROR)
 				printf("\nNew primary could not be selected");
 		}
@@ -738,15 +766,27 @@ int start_election(int n_sock) {
 				sv_conn.sin_port = htons(serversList[j]->port);
 				sv_conn.sin_addr.s_addr = inet_addr(serversList[j]->address);
 
+				//debug
 				printf("\nStarting connection with backup server at %s/%d", serversList[j]->address, serversList[j]->port);
 
 				int zero = START_MSG_COUNTER;
 				bzero(buffer, BUFFER_SIZE -1);
 				strcpy(buffer, DM);
-				/* Send */				
+				/* Send */
+				
+				if (sigsetjmp(recv_timed_out2, 1)) {
+					printf("\nNo signal received! I am the new primary\n");
+					//mandar os dados do novo primário para se conectar ao cliente
+					exit(1); //debug
+				}
+				signal(SIGALRM, timeout_backup_handler);
+				alarm(RECV_TIMEOUT);				
 				if(send_packet(&zero, buffer, sockid, &sv_conn) < 0) 
-					printf("\nERROR starting connection with primary server");
-				//wait
+					printf("\nERROR starting connection with backup server");
+				alarm(0);
+				signal(SIGALRM, SIG_DFL);
+
+				
 			}
 
 			else if (my_id == j) {
@@ -756,15 +796,15 @@ int start_election(int n_sock) {
 
 				int zero = START_MSG_COUNTER;
 				bzero(buffer, BUFFER_SIZE -1);
-				if(recv_packet(&zero, buffer, n_sock, &sv_conn) == 0)                  						printf("Received backup request for %s", buffer);
+				
+				if(recv_packet(&zero, buffer, n_sock, &sv_conn) == 0)                  						printf("\nReceived backup request for %s -> I am the new primary", buffer);
+					//mandar os dados do novo primário para se conectar ao cliente
 				else {
 					printf("\nERROR receiving democracy request");
 					return ERROR;
-				}					
-				//wait
+				}
 			}
 		}
-
 	return SUCCESS;
 }
 
