@@ -15,7 +15,7 @@
 #define NS_SIGNAL "NEW BACKUP SERVER SIGNAL"
 #define NC_SIGNAL "NEW CLIENT SIGNAL"
 #define TST_CON "TESTING CONNECTION"
-#define DM "DEMOCRACY"
+#define DM "ELECTION"
 
 
 struct server_connection{
