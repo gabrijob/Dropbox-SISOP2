@@ -413,7 +413,7 @@ void* serverThread(void* connection_struct) {
 			send_test_msg();
 		}		
 	}
-    return NULL;
+    	return NULL;
 }
 
 
@@ -490,6 +490,8 @@ void run_backup(int sockid, char* address, int port, char* primary_server_addres
 	
 	recv_servers_list(primary_sockid, &primary_sv_conn);
 	recv_clients_list(primary_sockid, &primary_sv_conn);
+	serversList[my_id]->socket = sockid;
+
 	wait_contact(sockid); 
 }
 
@@ -720,6 +722,9 @@ void wait_contact(int sockid) {
 			/* Return buffer contains new primary id */
 			else {
 				new_primary = return_buffer;
+				
+				//mandar dados do novo primario -> id dele esta em new_primary
+				
 				break;
 			}	
 			
@@ -728,16 +733,12 @@ void wait_contact(int sockid) {
 		//if nothing is received in 3 secs the server was probably killed
 		signal(SIGALRM, timeout_handler);
 		alarm(RECV_TIMEOUT);
- 
-		//printf("\nbuguei 1");
 
 		if(recv_packet(&zero, buffer, sockid, &conn_addr) == 0) {
 			printf("\nReceived datagram %s\n", buffer);
 			alarm(0);
 			signal(SIGALRM, SIG_DFL);
 		}
-
-		//printf("\nbuguei 2");
 
 		/* NEW BACKUP SERVER */
 		if(strcmp(buffer, NS_SIGNAL) == 0) { 
@@ -758,12 +759,91 @@ void wait_contact(int sockid) {
 		//if(DELETE) remove_file
 	}
 	/* End of first infinite loop */
-	if (new_primary == 0)
-		printf("\nI AM FREE\n");  
+	wait_connection_v2();
+}
 
-	if (new_primary != 0) 
-		printf("\nI am the new primary\n");
+/* Tests connection between backups */
+void wait_connection_v2() {
+	
+	int j = 1; //default
 
+	if (new_primary != 0) {
+		printf("\nI am the new primary\n");  
+
+		int sockid = serversList[my_id]->socket;
+
+		while(TRUE) {
+			
+			char buffer[BUFFER_SIZE];
+			struct sockaddr_in sv_conn_backup;
+
+			int zero = START_MSG_COUNTER;
+			bzero(buffer, BUFFER_SIZE -1);
+			
+			sleep(2);
+			if(recv_packet(&zero, buffer, sockid, &sv_conn_backup) == 0) {
+				printf("\nReceived backup request for %s\n", buffer);
+			}
+				
+			else {
+				printf("\nERROR receiving democracy request");
+			}
+
+		} 
+
+
+	}
+
+	if (new_primary == 0) {
+		printf("\nI am still a backup :(\n");
+		for(int i = 1; i<= last_new_id; i++) {
+			if (i != my_id) {
+				j = i;
+				break; //j is the new speaker
+			}
+		}
+		int sockid;
+		struct sockaddr_in sv_conn;
+		sockid = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+		if (sockid == ERROR) {
+			printf("\nError opening socket");
+		}
+		
+		bzero((char *) &sv_conn, sizeof(struct sockaddr_in));
+		sv_conn.sin_family = AF_INET;
+		sv_conn.sin_port = htons(serversList[j]->port);
+		sv_conn.sin_addr.s_addr = inet_addr(serversList[j]->address);
+
+		
+		while(TRUE) {
+
+			char buffer[BUFFER_SIZE];
+			int zero = START_MSG_COUNTER;
+
+			bzero(buffer, BUFFER_SIZE -1);
+			strcpy(buffer, TST_CON);
+			if (sigsetjmp(recv_timed_out2, 1)) {
+				printf("\nNo signal received! I am now the only server available\n");
+				new_primary = my_id;
+				//mandar os dados do novo primário para se conectar ao cliente-> id esta em new_primary
+
+				exit(1); //debug
+			}
+
+			printf("\nStarting connection with backup server at %s/%d\n", serversList[j]->address, serversList[j]->port);
+			sleep(2);
+
+			signal(SIGALRM, timeout_backup_handler);
+			alarm(RECV_TIMEOUT);
+			if(send_packet(&zero, buffer, sockid, &sv_conn) < 0) {
+				printf("\nERROR starting connection with backup server");
+			}
+			else {
+				alarm(0);
+				signal(SIGALRM, SIG_DFL);
+			}
+		}
+	}
 }
 
 int start_election(int n_sock) {
@@ -820,22 +900,6 @@ int start_election(int n_sock) {
 					return ERROR;
 
 				return SUCCESS;
-
-				/* Send */
-				
-				//if (sigsetjmp(recv_timed_out2, 1)) {
-				//	printf("\nNo signal received! I am the new primary\n");
-					//mandar os dados do novo primário para se conectar ao cliente
-				//	exit(1); //debug
-				//}
-				
-				//signal(SIGALRM, timeout_backup_handler);
-				//alarm(RECV_TIMEOUT);	
-				
-				//alarm(0);
-				//signal(SIGALRM, SIG_DFL);
-
-				
 			}
 
 			else if (my_id == j) {

@@ -49,6 +49,7 @@ int recv_new_server(int sockid);
 void wait_contact(int sockid);
 void send_test_msg();
 int start_election(int sockid);
+void wait_connection_v2();
 
 void serversListPrint();
 void clientsListPrint();
