@@ -8,7 +8,7 @@
 int my_id = 0;
 int last_new_id = 0;
 s_Connection* serversList[MAXSERVERS]; // id do servidor é sua posição no array
-int last_client_index = 0;
+int last_client_index = -1;
 C_DATA* clientsList[MAX_CLIENTS];
 
 int is_new_backup[MAXSERVERS];
@@ -38,9 +38,7 @@ int init_server_connection(int port, char* address, int *sockid ,struct sockaddr
 	return SUCCESS;
 }
 
-
-
-//====================================FUNÇÕES  SERVIDOR PRIMARIO=================================================================
+//====================================FUNÇÕES SERVIDOR PRIMARIO=================================================================
 void init_server_structs(int sid, int port, char* address) {
 
 	/* Insert primary server on servers list*/
@@ -62,16 +60,6 @@ void init_server_structs(int sid, int port, char* address) {
 
 }
 
-/* Insert client data on the clients list */
-void register_client_login(char *id, struct sockaddr_in *cli_addr) {
-	C_DATA *client_data = (C_DATA*) malloc(sizeof(C_DATA));
-	strcpy(client_data->id, id);
-	client_data->sock_addr = cli_addr;
-
-	clientsList[last_client_index] = client_data;
-	last_client_index++;
-}
-
 /* Indicates to whom primary server must send the new backup server data */
 void signal_new_backup() {
 	for(int i = 0; i < last_new_id; i++) {
@@ -79,6 +67,26 @@ void signal_new_backup() {
 			is_new_backup[i] = TRUE;
 		}
 	}
+}
+
+/* Indicates to whom primary server must send the new backup server data */
+void signal_new_client() {
+	for(int i = 0; i <= last_new_id; i++) {
+		if((serversList[i] != NULL) && (serversList[i]->sid != -1) && (i != my_id)) {
+			is_new_client[i] = TRUE;
+		}
+	}
+}
+
+/* Insert client data on the clients list */
+void register_client_login(char *id, struct sockaddr_in *cli_addr) {
+	C_DATA *client_data = (C_DATA*) malloc(sizeof(C_DATA));
+	strcpy(client_data->id, id);
+	client_data->sock_addr = cli_addr;
+
+	last_client_index++;
+	clientsList[last_client_index] = client_data;
+	signal_new_client();
 }
 
 void new_backup_sv_conn(char* my_address, int old_sockid) {
@@ -195,9 +203,6 @@ int send_servers_to_new(int sockid) {
 
 		}
 	}
-
-
-
 	printf("Done\n");
 	return SUCCESS;
 }
@@ -239,7 +244,7 @@ int send_clients_to_new(int sockid) {
 		else
 			strcpy(client_id, clientsList[i]->id);
 
-		/* Send sid */
+		/* Send id */
 		strcpy(buffer, client_id);
 		zero = START_MSG_COUNTER;
 		if(send_packet(&zero, buffer, sockid, &backup_addr) < 0)
@@ -323,6 +328,67 @@ int send_new_server_to_backup(int to_sid) {
 	return SUCCESS;
 }
 
+int send_new_client_to_backup(int to_sid) {
+	int zero;
+	char buffer[BUFFER_SIZE];
+
+	struct sockaddr_in backup_addr;
+
+	s_Connection *to_backup = serversList[to_sid];
+
+	if(to_sid == -1 || to_backup == NULL) {
+		printf("\nERROR backup server unavailable");
+		return ERROR;
+	}
+
+	int to_socket = to_backup->socket;
+	int to_port = to_backup->port;
+	char to_address[MAXNAME];
+	strcpy(to_address, to_backup->address);
+
+	/* Create struct for server socket address */
+	if(init_server_connection(to_port, to_address, NULL, &backup_addr) == ERROR) {
+		printf("\nERROR initiating server connection");
+		return ERROR;
+	}
+	
+	C_DATA *new_client = clientsList[last_client_index];
+
+	if(new_client == NULL) {
+		printf("\nERROR new client unavailable");
+		return ERROR;
+	}
+
+	/* Send new client signal to backup server */
+	sprintf(buffer, "%s", NC_SIGNAL);
+	zero = START_MSG_COUNTER;
+	if(send_packet(&zero, buffer, to_socket, &backup_addr) < 0)
+		printf("\nERROR sending client id to backup server");	
+
+	char client_id[MAXNAME];
+	char* sock_addr;
+	
+	strcpy(client_id, new_client->id);
+
+	/* Send id */
+	strcpy(buffer, client_id);
+	zero = START_MSG_COUNTER;
+	if(send_packet(&zero, buffer, to_socket, &backup_addr) < 0)
+		printf("\nERROR sending client id to backup server");
+
+
+	sock_addr = (char*) new_client->sock_addr;
+	/* Send socket address */
+	memcpy(buffer, sock_addr, BUFFER_SIZE);
+	zero = START_MSG_COUNTER;
+	if(send_packet(&zero, buffer, to_socket, &backup_addr) < 0)
+		printf("\nERROR sending socket address to backup server");
+	
+	is_new_client[to_sid] = FALSE;
+
+	return SUCCESS;	
+}
+
 /**
  * Thread de comunicação do servidor primario com um servidor de backup 
  **/
@@ -342,7 +408,10 @@ void* serverThread(void* connection_struct) {
 		if(is_new_backup[sid]) 
 			send_new_server_to_backup(sid);
 
-		//if(NEW_CLIENT) send_new_client_to_backup		
+		if(is_new_client[sid]) {
+			printf("\nSIGNALED\n"); 
+			send_new_client_to_backup(sid);	
+		}	
 	}	
 
 
@@ -617,6 +686,50 @@ int recv_new_server(int sockid) {
 	return SUCCESS;
 }
 
+/** 
+ * Receive new client data and stores it on servers list 
+ **/ 
+int recv_new_client(int sockid) {
+	int zero;
+	char buffer[BUFFER_SIZE];
+	char client_folder[MAXPATH];
+
+	struct sockaddr_in prim_sv;
+	
+	C_DATA *client_data = (C_DATA*) malloc(sizeof(C_DATA));
+
+	/* Receives client id  */
+	zero = START_MSG_COUNTER;
+	bzero(buffer, BUFFER_SIZE -1);
+	if(recv_packet(&zero, buffer, sockid, &prim_sv) < 0)
+		printf("\nERROR receiving client id"); 
+		
+	strcpy(client_data->id, buffer);
+
+	/* Receive client socket address*/
+	zero = START_MSG_COUNTER;
+	bzero(buffer, BUFFER_SIZE -1);
+	if(recv_packet(&zero, buffer, sockid, &prim_sv) < 0)
+		printf("\nERROR receiving client socket address");
+
+	client_data->sock_addr = (struct sockaddr_in *) buffer;
+
+	/* Create client directory if it doesn't exist */
+	sprintf(client_folder, "%s/%s/%s",getUserHome(), SERVER_FOLDER, client_data->id);
+	if(check_dir(client_folder) == FALSE) {
+		if(mkdir(client_folder, 0777) != SUCCESS) {
+			printf("Error creating client folder '%s'.\n", client_folder);
+			return ERROR;
+		}
+	}
+
+	last_client_index++;
+	clientsList[last_client_index] = client_data;
+
+	/* Synchornize client directory with main server's */
+
+	return SUCCESS;
+}
 
 /**
  * Espera comandos do servidor primário ou de outros backups
@@ -641,8 +754,12 @@ void wait_contact(int sockid) {
 			recv_new_server(sockid);
 			serversListPrint(); 			//debug
 		}
+		/* NEW CLIENT */
+		if(strcmp(buffer, NC_SIGNAL) == 0) {
+			recv_new_client(sockid);
+			clientsListPrint();				//debug
+		}
 
-		//if(NB_SIGNAL) recv_new_backup
 		//if(VOTE_SIGAL) start_election
 		
 		//if(UPLOAD) receive_file
@@ -778,7 +895,7 @@ void clientsListPrint() {
 			printf("\n\tN/A\n");
 			continue;
 		} 
-		printf("\n\tID: %s", clientsList[i]->id);
+		printf("\n\tID: %s\n\n", clientsList[i]->id);
 
 	}
 }
