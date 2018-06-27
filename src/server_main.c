@@ -2,6 +2,7 @@
 #define SERVER_MAIN_CODE
 
 #include "dropboxServer.h"
+#include "sync-server.h"
 #include "server_replication.h"
 
 
@@ -9,7 +10,7 @@
 ClientList clients_list;
 ServerInfo serverInfo;
 sem_t semaphore;
-//CLIENT STRUCTS MUTEX
+pthread_mutex_t clients_list_mutex;
 
 
 
@@ -189,6 +190,18 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 		client->pending_changes[1] = TRUE;
 		if(update_client == FALSE) client->pending_changes[device_index] = FALSE;	
 	}
+	/* UPDATE */
+	else if(strcmp(buffer, S_UPD_REQ) == 0) {
+		update_del(socket, client, msg_id);
+		update_get(socket, client, msg_id);
+
+		/* Update files list */
+		client->n_files = get_dir_file_info(client_folder, client->files);
+		/* Marks that there are pending changes */
+		client->pending_changes[0] = TRUE;
+		client->pending_changes[1] = TRUE;
+		client->pending_changes[device_index] = FALSE;
+	}
 	/* ANSWER CLIENT IF NEEDS TO SYNC */
 	else if(strcmp(buffer, NEED_SYNC) == 0) {
 		/* Synchronizes client if there are pending changes */
@@ -243,11 +256,13 @@ void* clientThread(void* connection_struct) {
 
 		/* Creates a new node for the client and adds in the GLOBAL clients list;
 		   Attributes a node to the new client */
+		pthread_mutex_lock(&clients_list_mutex);
 		clients_list = addClient(client_id, socket, clients_list);
 		client = searchClient(client_id, clients_list);
 
 		//-------FOR DEBUG-------//
 		printUserList(clients_list);
+		pthread_mutex_unlock(&clients_list_mutex);
 
 		/* Register new client for backup servers*/
 		register_client_login(client_id, cli_addr);
@@ -323,6 +338,11 @@ void wait_connection(char* address, int sockid) {
 
 	struct sockaddr_in conn_addr;
 		
+	/* Initializes mutex to control comunication with server*/
+	if(pthread_mutex_init(&clients_list_mutex, NULL) != 0){
+		printf("\nERROR mutex init failed ");
+		return;
+	}
 
 	while (TRUE) {
 		char buffer[BUFFER_SIZE];

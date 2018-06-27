@@ -4,6 +4,9 @@
 
 #include "sync-client.h"
 
+void update_server_del(UserInfo *user, MSG_ID *msg_id);
+void update_server_get(UserInfo *user, MSG_ID *msg_id);
+
 
 void synchronize_local(UserInfo *user, MSG_ID *msg_id) {
 
@@ -164,7 +167,152 @@ void synchronize_remote(UserInfo *user, MSG_ID *msg_id) {
 	}
 	
 	printf("\nEnd of server sync\n");		//debug
+}
 
+void update_server(UserInfo *user, MSG_ID *msg_id) {
+	int sockid = user->socket_id;
+	struct sockaddr_in *serv_conn = user->serv_conn;
+
+	char buffer[BUFFER_SIZE];
+
+	/* Send update request to server */
+	strcpy(buffer, S_UPD_REQ);
+	if(send_packet(&msg_id->client, buffer, sockid, serv_conn) < 0)
+		printf("\nERROR sending server update request");
+
+	update_server_del(user, msg_id);
+	update_server_get(user, msg_id);
+}
+
+void update_server_del(UserInfo *user, MSG_ID *msg_id) {
+	char path[MAXPATH];
+	char filename[MAXNAME];
+	char last_modified_server[MAXNAME];
+	char last_modified_client[MAXNAME];
+	char buffer[BUFFER_SIZE];
+
+	int number_files_server;
+
+	int sockid = user->socket_id;
+
+	struct sockaddr_in* serv_addr = user->serv_conn;
+
+	printf("\nHandling pending deletions on server...\n");		//debug
+	
+	/* Send start sync message */
+	strcpy(buffer, S_SYNC);
+	if(send_packet(&msg_id->client, buffer, sockid, serv_addr) < 0)
+		printf("\nERROR sending message to start sync");
+
+
+	/* Receives number of files on server */
+	bzero(buffer, BUFFER_SIZE);	
+	if(recv_packet(&msg_id->server, buffer, sockid, serv_addr) < 0)
+		printf("\nERROR receiving number of files at server");
+
+	number_files_server = atoi(buffer);
+	printf("\n%d arquivos no servidor", number_files_server); //debug
+	
+
+	//for each file on server
+	for(int i = 0; i < number_files_server; i++) {
+
+		/* Receive file name */
+		bzero(buffer, BUFFER_SIZE);	
+		if(recv_packet(&msg_id->server, buffer, sockid, serv_addr) < 0)
+			printf("\nERROR receiving file name");
+
+		strcpy(filename, buffer);
+		printf("\nNome recebido: %s", filename);			//debug
+
+
+		/* Receive file's last modification at server */
+		bzero(buffer, BUFFER_SIZE);
+		if(recv_packet(&msg_id->server, buffer, sockid, serv_addr) < 0)
+			printf("\nERROR receiving file's last modification");
+
+		strcpy(last_modified_server, buffer);
+		printf("\nLast modified on server: %s", last_modified_server);			//debug
+
+
+		sprintf(path, "%s/%s", user->folder, filename);
+		/* Function to acquire modification time of sync file */
+		getModifiedTime(path, last_modified_client);
+		printf("\nLast modified local: %s", last_modified_client);
+
+		/* Tells to delete if file doesn't exist */
+		if(check_dir(path) == FALSE) {				
+			printf("\nFile %s does not exist... deleting", filename);	//debug
+			delete_file(filename, user, msg_id, FALSE);
+		}
+		/* If neither send OK message*/
+		else {
+			strcpy(buffer, S_OK);
+			if(send_packet(&msg_id->client, buffer, sockid, serv_addr) < 0)
+				printf("\nERROR sending OK message");
+		}
+	}
+	
+	printf("\n...Done\n");		//debug
+}
+
+
+void update_server_get(UserInfo *user, MSG_ID *msg_id) {
+	FileInfo localFiles[MAXFILES];
+	char path[MAXPATH];
+	char buffer[BUFFER_SIZE];
+
+	int number_files_client;
+
+	int sockid = user->socket_id;
+
+	struct sockaddr_in* serv_addr = user->serv_conn;
+
+
+	printf("\nHandling pending file updates on server...\n");		//debug
+	
+	/* Sends number of files on client */
+	number_files_client = get_dir_file_info(user->folder, localFiles);
+	sprintf(buffer, "%d", number_files_client);
+	
+	if(send_packet(&msg_id->client, buffer, sockid, serv_addr) < 0)
+		printf("\nERROR sending number of files");
+
+
+	//for each file on client
+	for(int i = 0; i < number_files_client; i++) {
+		sprintf(path, "%s/%s", user->folder, localFiles[i].name);
+
+		/* Send file name */
+		strcpy(buffer, localFiles[i].name);
+		printf("\nName sent: %s", buffer);	//debug
+
+		if(send_packet(&msg_id->client, buffer, sockid, serv_addr) < 0)
+			printf("\nERROR sending file name");
+
+
+		/* Send last modified to server */
+		strcpy(buffer, localFiles[i].last_modified);
+		printf("\nLast modified: %s", buffer);	//debug
+
+		if(send_packet(&msg_id->client, buffer, sockid, serv_addr) < 0)
+			printf("\nERROR sending last modified");
+
+
+		/* Receive update or deletion request from server */
+		bzero(buffer, BUFFER_SIZE);
+		if(recv_packet(&msg_id->server, buffer, sockid, serv_addr) < 0)
+			printf("\nERROR receiving request from server");
+
+		printf("\nReceived: %s", buffer);	//debug
+
+		/* Send file */
+		if(strcmp(buffer, S_GET) == 0) {
+			send_file(path, user, msg_id, FALSE);
+		}
+	}
+	
+	printf("\n...Done\n");		//debug
 }
 
 #endif

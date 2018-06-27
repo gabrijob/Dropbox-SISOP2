@@ -67,6 +67,7 @@
 #define OK "OK"
 #define NOT_OK "NOT_OK"
 
+#define S_UPD_REQ "SERVER UPDATE REQUEST"
 #define S_SYNC "sync"
 #define S_GET "get"
 #define S_OK "ok"
