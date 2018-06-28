@@ -93,7 +93,7 @@ void client_menu() {
 		printf("Syncronization Thread creation failed: %d\n", r_sync_tid);
 	}
 	
-
+	char buffer[BUFFER_SIZE];
 	int exited = FALSE;
 	while(!exited){
 		
@@ -129,7 +129,7 @@ void client_menu() {
 				}
 				/* LIST_CLIENT */
 				else if(strcmp(command, "list_client") == 0) {
-					list_client();;
+					list_client();
 				}
 				/* GET_SYNC_DIR*/
 				else if(strcmp(command, "get_sync_dir") == 0) {
@@ -143,6 +143,12 @@ void client_menu() {
 					delete_file(attribute, &user, &msg_id, FALSE);
 					pthread_mutex_unlock(&user.lock_server_comm);
 				}
+
+				/*pthread_mutex_lock(&user.lock_server_comm);
+				if(recv_packet(&msg_id.server, buffer, user.socket_id, user.serv_conn) < 0)
+					printf("ERROR receiving continue message from server\n");
+				pthread_mutex_unlock(&user.lock_server_comm);*/
+
 			}
 				
 		}

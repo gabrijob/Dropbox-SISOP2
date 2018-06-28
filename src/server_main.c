@@ -127,14 +127,15 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 		sprintf(filename, "%s", buffer);
 		int file_index = getFileIndex(filename, client->files, client->n_files);
 		receive_file(filename, socket, client->userid, msg_id, &(client->mutex_files[file_index]));	
-
 		
 		/* Update files list */
 		client->n_files = get_dir_file_info(client_folder, client->files);
 		/* Marks that there are pending changes */
 		client->pending_changes[0] = TRUE;
 		client->pending_changes[1] = TRUE;
-		if(update_client == FALSE) client->pending_changes[device_index] = FALSE;		
+		if(update_client == FALSE) client->pending_changes[device_index] = FALSE;
+
+		propagate_upload(filename, client->userid);
 	}
 	/* DOWNLOAD */
 	else if(strcmp(buffer, DOWN_REQ) == 0) {
@@ -159,6 +160,7 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 	/* GET_SYNC_DIR */
 	else if(strcmp(buffer, SYNC_REQ) == 0) {
 		sync_server(socket, client, msg_id);
+		propagate_sync_dir(client->userid);
 	}
 	/* DELETE */
 	else if(strcmp(buffer, DEL_REQ) == 0 || strcmp(buffer, DEL_REQ_S) == 0) {
@@ -188,7 +190,9 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 		/* Marks that there are pending changes */
 		client->pending_changes[0] = TRUE;
 		client->pending_changes[1] = TRUE;
-		if(update_client == FALSE) client->pending_changes[device_index] = FALSE;	
+		if(update_client == FALSE) client->pending_changes[device_index] = FALSE;
+
+		propagate_delete(filename, client->userid);	
 	}
 	/* UPDATE */
 	else if(strcmp(buffer, S_UPD_REQ) == 0) {
@@ -201,6 +205,8 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 		client->pending_changes[0] = TRUE;
 		client->pending_changes[1] = TRUE;
 		client->pending_changes[device_index] = FALSE;
+
+		propagate_sync_dir(client->userid);
 	}
 	/* ANSWER CLIENT IF NEEDS TO SYNC */
 	else if(strcmp(buffer, NEED_SYNC) == 0) {
@@ -213,6 +219,7 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 
 			sync_server(socket, client, msg_id);
 			client->pending_changes[device_index] = FALSE;
+			propagate_sync_dir(client->userid);
 		}
 		/* If there's not must tell client also */
 		else{
@@ -221,6 +228,10 @@ void select_commands(char *buffer, struct sockaddr_in *cli_addr, int socket, Cli
 				printf("\nERROR telling client to not sync");
 		}
 	}	
+
+	/*strcpy(buffer, OK);
+	if(send_packet(&msg_id->server, buffer, socket, cli_addr) < 0)
+		printf("\nERROR telling client to continue");*/
 
 }
 

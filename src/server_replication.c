@@ -12,11 +12,17 @@ int new_primary = 0;
 s_Connection* serversList[MAXSERVERS]; // id do servidor é sua posição no array
 int last_client_index = -1;
 C_DATA* clientsList[MAX_CLIENTS];
-int is_new_backup[MAXSERVERS];
-int is_new_client[MAX_CLIENTS];
 
-Client* focus_client;
-sem_t s_focus_client;
+
+/*-----------Signals-------------------*/
+int is_new_backup[MAXSERVERS];
+int is_new_client[MAXSERVERS];
+prog_comm_info is_upload[MAXSERVERS];
+prog_comm_info is_delete[MAXSERVERS];
+prog_comm_info is_sync_dir[MAXSERVERS];
+/*-------------------------------------*/
+
+sem_t s_propagation;
 
 int primary_killed = FALSE;
 static sigjmp_buf recv_timed_out;
@@ -80,13 +86,13 @@ void init_server_structs(int sid, int port, char* address) {
 
 	serversList[sid] = connection;
 
-	/* Initialize list of flags for new backups and new clients*/
+	/* Initialize list of flags for signal lists*/
 	for(int i = 0; i < MAXSERVERS; i++) {
 		is_new_backup[i] = FALSE;
-	}
-
-	for(int i = 0; i < MAX_CLIENTS; i++) {
 		is_new_client[i] = FALSE;
+		is_upload[i].flag = FALSE;
+		is_delete[i].flag = FALSE;
+		is_sync_dir[i].flag = FALSE;
 	}
 
 }
@@ -99,7 +105,7 @@ void signal_new_backup() {
 	}
 }
 
-/* Indicates to whom primary server must send the new backup server data */
+/* Indicates to whom primary server must send the client data */
 void signal_new_client() {
 	for(int i = 0; i <= last_new_id; i++) {
 		if((serversList[i] != NULL) && (serversList[i]->sid != -1) && (i != my_id)) {
@@ -107,6 +113,48 @@ void signal_new_client() {
 		}
 	}
 }
+
+/* Indicates to whom primary server must send upload request */
+void signal_upload(char *client_id, char *filename) {
+	int counter = 0;
+	for(int i = 0; i <= last_new_id; i++) {
+		if((serversList[i] != NULL) && (serversList[i]->sid != -1) && (i != my_id)) {
+			is_upload[i].flag = TRUE;
+			strcpy(is_upload[i].client_id, client_id);
+			strcpy(is_upload[i].filename, filename);
+			counter++;
+		}
+	}
+	sem_init(&s_propagation, 0, -counter);
+}
+
+/* Indicates to whom primary server must send delete request */
+void signal_delete(char *client_id, char *filename) {
+	int counter = 0;
+	for(int i = 0; i <= last_new_id; i++) {
+		if((serversList[i] != NULL) && (serversList[i]->sid != -1) && (i != my_id)) {
+			is_delete[i].flag = TRUE;
+			strcpy(is_delete[i].client_id, client_id);
+			strcpy(is_delete[i].filename, filename);
+			counter++;
+		}
+	}
+	sem_init(&s_propagation, 0, -counter);
+}
+
+/* Indicates to whom primary server must synchronize client directory */
+void signal_sync_dir(char *client_id) {
+	int counter = 0;
+	for(int i = 0; i <= last_new_id; i++) {
+		if((serversList[i] != NULL) && (serversList[i]->sid != -1) && (i != my_id)) {
+			is_sync_dir[i].flag = TRUE;
+			strcpy(is_sync_dir[i].client_id, client_id);
+			counter++;
+		}
+	}
+	sem_init(&s_propagation, 0, -counter);
+}
+
 
 /* Insert client data on the clients list */
 void register_client_login(char *id, struct sockaddr_in *cli_addr, Client* client) {
@@ -117,9 +165,6 @@ void register_client_login(char *id, struct sockaddr_in *cli_addr, Client* clien
 	last_client_index++;
 	clientsList[last_client_index] = client_data;
 	signal_new_client();
-
-	focus_client = client;
-	//sem_init(&s_focus_client, 0, -last_client_index);
 }
 
 void new_backup_sv_conn(char* my_address, int old_sockid) {
@@ -376,7 +421,7 @@ int send_new_server_to_backup(int to_sid) {
 	zero = START_MSG_COUNTER;
 	
 	if(send_packet(&zero, buffer, to_socket, &backup_addr) < 0)
-		printf("\nERROR sending sid to backup server");	
+		printf("\nERROR sending signal to backup server");	
 
 	/* Send sid */
 	sprintf(buffer, "%d", last_new_id);
@@ -467,6 +512,27 @@ int send_new_client_to_backup(int to_sid) {
 	return SUCCESS;	
 }
 
+void propagate_upload(char *filename, char *client_id) {
+	printf("\nPropagating upload to backups");		//debug
+	signal_upload(client_id, filename);
+	sem_wait(&s_propagation);
+	sem_destroy(&s_propagation);
+}
+
+void propagate_delete(char *filename, char *client_id) {
+	printf("\nPropagating delete to backups");		//debug
+	signal_delete(client_id, filename);
+	sem_wait(&s_propagation);
+	sem_destroy(&s_propagation);
+}
+
+void propagate_sync_dir(char *client_id) {
+	printf("\nPropagating sync dir to backups");		//debug
+	signal_sync_dir(client_id);
+	sem_wait(&s_propagation);
+	sem_destroy(&s_propagation);
+}
+
 /**
  * Thread de comunicação do servidor primario com um servidor de backup 
  **/
@@ -494,12 +560,85 @@ void* serverThread(void* connection_struct) {
 
 	send_all_clients(sockid, &backup_addr);
 
+	pthread_mutex_t file_mutex;
+	pthread_mutex_init(&file_mutex, NULL);
+	MSG_ID msg_id;
+	int zero;
+	char buffer[BUFFER_SIZE];
+
 	while(TRUE)  {
 		
-		if(is_new_backup[sid]) 
+		if(is_new_backup[sid]) {
 			send_new_server_to_backup(sid);
-		else if(is_new_client[sid])
-			send_new_client_to_backup(sid);		
+		}
+		else if(is_new_client[sid]) {
+			send_new_client_to_backup(sid);
+		}
+		else if(is_upload[sid].flag) {
+			/* Send upload signal to backup server */
+			sprintf(buffer, "%s", UP_SIGNAL);
+			zero = START_MSG_COUNTER;
+			if(send_packet(&zero, buffer, sockid, &backup_addr) < 0)
+				printf("\nERROR sending signal to backup server");	
+
+			/* Send client id */
+			strcpy(buffer, is_upload[sid].client_id);
+			zero = START_MSG_COUNTER;
+			if(send_packet(&zero, buffer, sockid, &backup_addr) < 0)
+				printf("\nERROR sending client id to backup server");
+
+			/* Send filename */
+			strcpy(buffer, is_upload[sid].filename);
+			zero = START_MSG_COUNTER;
+			if(send_packet(&zero, buffer, sockid, &backup_addr) < 0)
+				printf("\nERROR sending filename to backup server");
+
+			/* Send file*/
+			msg_id.client = 0;
+    		msg_id.server = 0;
+			if(recv_packet(&msg_id.client, buffer, sockid, &backup_addr) < 0)
+        		printf("\nERROR receiving request");
+			strcpy(buffer, OK);
+        	if(send_packet(&msg_id.server, buffer, sockid, &backup_addr) < 0)
+        		printf("\nERROR telling to not send filename");
+
+			send_file(is_upload[sid].filename, sockid, is_upload[sid].client_id, &backup_addr, &msg_id, &file_mutex);
+			is_upload[sid].flag = FALSE;
+			sem_post(&s_propagation);
+		}	
+		else if(is_delete[sid].flag) {
+			/* Send delete signal to backup server */
+			sprintf(buffer, "%s", DEL_SIGNAL);
+			zero = START_MSG_COUNTER;
+			if(send_packet(&zero, buffer, sockid, &backup_addr) < 0)
+				printf("\nERROR sending signal to backup server");
+
+			/* Send client id */
+			strcpy(buffer, is_delete[sid].client_id);
+			zero = START_MSG_COUNTER;
+			if(send_packet(&zero, buffer, sockid, &backup_addr) < 0)
+				printf("\nERROR sending client id to backup server");
+
+			/* Send filename */
+			strcpy(buffer, is_delete[sid].filename);
+			zero = START_MSG_COUNTER;
+			if(send_packet(&zero, buffer, sockid, &backup_addr) < 0)
+				printf("\nERROR sending filename to backup server");
+			
+			is_delete[sid].flag = FALSE;
+			sem_post(&s_propagation);				
+		}
+		else if(is_sync_dir[sid].flag) {
+			/* Send get sync dir signal to backup server */
+			sprintf(buffer, "%s", GSD_SIGNAL);
+			zero = START_MSG_COUNTER;
+			if(send_packet(&zero, buffer, sockid, &backup_addr) < 0)
+				printf("\nERROR sending signal to backup server");
+
+			send_client_files(sockid, is_sync_dir[sid].client_id, &backup_addr);
+			is_sync_dir[sid].flag = FALSE;
+			sem_post(&s_propagation);	
+		}	
 		else {
 			sleep(2);
 			send_test_msg();
@@ -511,7 +650,7 @@ void* serverThread(void* connection_struct) {
 
 //====================================FUNÇÕES SERVIDOR BACKUP=================================================================
 void run_backup(int sockid, char* address, int port, char* primary_server_address, int primary_server_port) {
-    	int primary_sockid;
+    int primary_sockid;
 	char buffer[BUFFER_SIZE];
 
 	struct sockaddr_in primary_sv_conn, from;
@@ -830,6 +969,9 @@ int recv_new_client(int sockid) {
  * Espera comandos do servidor primário ou de outros backups
  **/ 
 void wait_contact(int sockid) {
+	MSG_ID msg_id;
+    msg_id.client = 0;
+    msg_id.server = 0;
 	int zero;
 	char buffer[BUFFER_SIZE];
 
@@ -875,7 +1017,7 @@ void wait_contact(int sockid) {
 		alarm(RECV_TIMEOUT);
 
 		if(recv_packet(&zero, buffer, sockid, &conn_addr) == 0) {
-			printf("\nReceived datagram %s\n", buffer);
+			//printf("\nReceived datagram %s\n", buffer);
 			alarm(0);
 			signal(SIGALRM, SIG_DFL);
 		}
@@ -892,17 +1034,65 @@ void wait_contact(int sockid) {
 			clientsListPrint();				//debug
 		}
 		
+		/* UPLOAD */
+		if(strcmp(buffer, UP_SIGNAL) == 0) {
+			/* Receive client_id*/
+			bzero(buffer, BUFFER_SIZE -1);
+			zero = START_MSG_COUNTER;
+			if(recv_packet(&zero, buffer, sockid, &conn_addr) < 0)
+				printf("\nERROR receiving client id");
+			
+			char client_id[MAXNAME];
+			sprintf(client_id, "%s", buffer);
+
+			/* Receive filename*/
+			bzero(buffer, BUFFER_SIZE -1);
+			zero = START_MSG_COUNTER;
+			if(recv_packet(&zero, buffer, sockid, &conn_addr) < 0)
+				printf("\nERROR receiving filename");
+			
+			char filename[MAXNAME];
+			sprintf(filename, "%s", buffer);
+
+			/* Download file */
+			msg_id.client = 0;
+    		msg_id.server = 0;
+			get_file(filename, sockid, &conn_addr, client_id, &msg_id);
+		}
+
+		/* DELETE */
+		if(strcmp(buffer, DEL_SIGNAL) == 0) {
+			/* Receive client_id*/
+			bzero(buffer, BUFFER_SIZE -1);
+			zero = START_MSG_COUNTER;
+			if(recv_packet(&zero, buffer, sockid, &conn_addr) < 0)
+				printf("\nERROR receiving client id");
+			
+			char client_id[MAXNAME];
+			sprintf(client_id, "%s", buffer);
+
+			/* Receive filename*/
+			bzero(buffer, BUFFER_SIZE -1);
+			zero = START_MSG_COUNTER;
+			if(recv_packet(&zero, buffer, sockid, &conn_addr) < 0)
+				printf("\nERROR receiving filename");
+			
+			char filename[MAXNAME];
+			sprintf(filename, "%s", buffer);
+
+			delete_file(filename, client_id);
+		}
+
+		/* GET_SYNC_DIR */
+		if(strcmp(buffer, GSD_SIGNAL) == 0) {
+			get_client_files(sockid);
+		}
+
 		//if(strcmp(buffer, TST_CON) == 0) { 
 			//recv_new_server(sockid);
 			//serversListPrint(); 
 						
-		//}
-
-		//if(VOTE_SIGAL) start_election
-		
-		//if(UPLOAD) receive_file
-		//if(DOWNLOAD) faz nada
-		//if(DELETE) remove_file
+		//}		
 	}
 	/* End of first infinite loop */
 	wait_connection_v2();

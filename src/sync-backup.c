@@ -54,7 +54,7 @@ void get_all_clients(int sockid) {
     char buffer[BUFFER_SIZE];
 
     char backup_folder[3*MAXNAME];
-    sprintf(backup_folder, "%s/%s", getUserHome(), TEST_SERVER_FOLDER);
+    sprintf(backup_folder, "%s/%s", getUserHome(), /*TEST_*/SERVER_FOLDER);
 
     printf("\nReceiving all files from primary server...");
 
@@ -79,18 +79,72 @@ void get_all_clients(int sockid) {
 
 
 
+void send_client_files(int sockid, char* client_id, struct sockaddr_in* backup_addr) {
+    int zero;
+    char buffer[BUFFER_SIZE];
+
+    /* Send client id */
+	strcpy(buffer, client_id);
+	zero = START_MSG_COUNTER;
+	if(send_packet(&zero, buffer, sockid, backup_addr) < 0)
+		printf("\nERROR sending client id to backup server");	
+    
+    /* Start synchronizing*/
+    MSG_ID msg_id;
+    msg_id.client = 0;
+    msg_id.server = 0;
+    
+    printf("\nSynchronizing client %s with backup server...", client_id);
+
+    sync_to_backup_dw(sockid, client_id, &msg_id);
+    sync_to_backup_re(sockid, client_id, &msg_id);
+
+    printf("\n...Done\n");
+}
+
+
+void get_client_files(int sockid) {
+    int zero;
+    struct sockaddr_in prim_addr;
+    char client_id[MAXNAME];
+
+    char buffer[BUFFER_SIZE];
+
+    /* Receives client id  */
+	zero = START_MSG_COUNTER;
+	bzero(buffer, BUFFER_SIZE -1);
+	if(recv_packet(&zero, buffer, sockid, &prim_addr) < 0)
+		printf("\nERROR receiving client id"); 
+		
+	strcpy(client_id, buffer);
+
+
+    /* Start synchronizing*/
+    MSG_ID msg_id;
+    msg_id.client = 0;
+    msg_id.server = 0;
+
+    printf("\nSynchronizing client %s with primary server...", client_id);
+
+    synchronize_local(sockid, &prim_addr, client_id, &msg_id);
+    synchronize_remote(sockid, &prim_addr, client_id, &msg_id);
+
+    printf("\n...Done\n");
+	
+}
+
+
 void get_file(char *filename, int sockid, struct sockaddr_in* prim_addr, char *client_id, MSG_ID *msg_id) {
 	int file_size;
 	int bytes_received;
 
     char client_folder[3*MAXNAME];
-	sprintf(client_folder, "%s/%s/%s", getUserHome(), TEST_SERVER_FOLDER, client_id);
+	sprintf(client_folder, "%s/%s/%s", getUserHome(), /*TEST_*/SERVER_FOLDER, client_id);
 
 	char buffer[BUFFER_SIZE];
 
 	/* Sends download request to server */
 	strcpy(buffer, DOWN_REQ);
-
 	if(send_packet(&msg_id->client, buffer, sockid, prim_addr) < 0) {
 		printf("\nERROR sending download request");
 		return;
@@ -123,7 +177,7 @@ void get_file(char *filename, int sockid, struct sockaddr_in* prim_addr, char *c
 	/* Receives the file size from server */
 	if(recv_packet(&msg_id->server, buffer, sockid, &from) < 0)
 		printf("\nERROR receiving file size from server\n");
-	
+
 	printf("\nFile size: %s", buffer);
 	file_size = atoi(buffer);
 
@@ -183,7 +237,7 @@ int delete_file(char* filename, char* client_id) {
 	int ret;
 
 	char client_folder[3*MAXNAME];
-	sprintf(client_folder, "%s/%s/%s", getUserHome(), TEST_SERVER_FOLDER, client_id);
+	sprintf(client_folder, "%s/%s/%s", getUserHome(), /*TEST_*/SERVER_FOLDER, client_id);
 
 	sprintf(filepath, "%s/%s", client_folder, filename);
 	printf("\nRemoving file at: %s", filepath);
@@ -203,61 +257,6 @@ int delete_file(char* filename, char* client_id) {
 }
 
 
-
-void send_client_files(int sockid, char* client_id, struct sockaddr_in* backup_addr) {
-    int zero;
-    char buffer[BUFFER_SIZE];
-
-    /* Send client id */
-	strcpy(buffer, client_id);
-	zero = START_MSG_COUNTER;
-	if(send_packet(&zero, buffer, sockid, backup_addr) < 0)
-		printf("\nERROR sending client id to backup server");	
-    
-    /* Start synchronizing*/
-    MSG_ID msg_id;
-    msg_id.client = 0;
-    msg_id.server = 0;
-    
-    printf("\nSynchronizing client with backup server...");
-
-    sync_to_backup_dw(sockid, client_id, &msg_id);
-    sync_to_backup_re(sockid, client_id, &msg_id);
-
-    printf("\n...Done\n");
-}
-
-
-void get_client_files(int sockid) {
-    int zero;
-    struct sockaddr_in prim_addr;
-    char client_id[MAXNAME];
-
-    char buffer[BUFFER_SIZE];
-
-    /* Receives client id  */
-	zero = START_MSG_COUNTER;
-	bzero(buffer, BUFFER_SIZE -1);
-	if(recv_packet(&zero, buffer, sockid, &prim_addr) < 0)
-		printf("\nERROR receiving client id"); 
-		
-	strcpy(client_id, buffer);
-
-
-    /* Start synchronizing*/
-    MSG_ID msg_id;
-    msg_id.client = 0;
-    msg_id.server = 0;
-
-    printf("\nSynchronizing client %s with primary server...", client_id);
-
-    synchronize_local(sockid, &prim_addr, client_id, &msg_id);
-    synchronize_remote(sockid, &prim_addr, client_id, &msg_id);
-
-    printf("\n...Done\n");
-	
-}
-
 //------------------------------------------------------PRIVATE-------------------------------------------------------------------------
 
 void synchronize_local(int sockid, struct sockaddr_in* prim_addr, char* client_id, MSG_ID *msg_id) {
@@ -272,7 +271,7 @@ void synchronize_local(int sockid, struct sockaddr_in* prim_addr, char* client_i
 
 	char client_folder[3*MAXNAME];
     /* Create client directory if it doesn't exist */
-	sprintf(client_folder, "%s/%s/%s", getUserHome(), TEST_SERVER_FOLDER, client_id);
+	sprintf(client_folder, "%s/%s/%s", getUserHome(), /*TEST_*/SERVER_FOLDER, client_id);
     if(check_dir(client_folder) == FALSE) {
 		if(mkdir(client_folder, 0777) != SUCCESS) {
 			printf("Error creating client folder '%s'.\n", client_folder);
@@ -350,7 +349,7 @@ void synchronize_remote(int sockid, struct sockaddr_in* prim_addr, char* client_
 
 
     char client_folder[3*MAXNAME];
-	sprintf(client_folder, "%s/%s/%s", getUserHome(), TEST_SERVER_FOLDER, client_id);
+	sprintf(client_folder, "%s/%s/%s", getUserHome(), /*TEST_*/SERVER_FOLDER, client_id);
 	
 	/* Sends number of files on client */
 	number_files_client = get_dir_file_info(client_folder, localFiles);
@@ -409,7 +408,8 @@ void synchronize_remote(int sockid, struct sockaddr_in* prim_addr, char* client_
 void sync_to_backup_dw(int sockid, char* client_id, MSG_ID* msg_id) { 
 
 	char buffer[BUFFER_SIZE];
-    pthread_mutex_t file_mutex;	
+    pthread_mutex_t file_mutex;
+    pthread_mutex_init(&file_mutex, NULL);	
 	int number_files_server;
     FileInfo localFiles[MAXFILES];
 
@@ -474,7 +474,8 @@ void sync_to_backup_dw(int sockid, char* client_id, MSG_ID* msg_id) {
 void sync_to_backup_re(int sockid, char* client_id, MSG_ID* msg_id) {
 
 	char buffer[BUFFER_SIZE];
-     pthread_mutex_t file_mutex;
+    pthread_mutex_t file_mutex;
+    pthread_mutex_init(&file_mutex, NULL);
 	char filename[MAXNAME];
 	char filepath[4*MAXNAME];
 	char last_modified_client[MAXNAME];

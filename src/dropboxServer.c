@@ -98,7 +98,6 @@ void send_file(char *filename, int sockid, char* id, struct sockaddr_in *cli_add
 	sprintf(filepath, "%s/%s/%s/%s", getUserHome(), SERVER_FOLDER, id, filename);
 	printf("\nSending file at %s", filepath); //DEBUG
 
-
 	FILE* file;
 	file = fopen(filepath, "rb");
 	
@@ -108,7 +107,6 @@ void send_file(char *filename, int sockid, char* id, struct sockaddr_in *cli_add
 			fclose(file);
 			printf("\nThe file is empty");
 		}			
-
 		sprintf(buffer, "%d", file_size);
 		printf("\nFile size: %s", buffer);
 

@@ -15,6 +15,9 @@
 #define CL_REQ "CLIENTS LIST REQUEST"
 #define NS_SIGNAL "NEW BACKUP SERVER SIGNAL"
 #define NC_SIGNAL "NEW CLIENT SIGNAL"
+#define UP_SIGNAL "UPLOAD SIGNAL"
+#define DEL_SIGNAL "DELETE SIGNAL"
+#define GSD_SIGNAL "GET SYNC DIR SIGNAL"
 #define TST_CON "TESTING CONNECTION"
 #define DM "ELECTION"
 
@@ -33,6 +36,13 @@ struct client_data{
 };
 typedef struct client_data C_DATA;
 
+struct propagate_command_data{
+	int flag;
+	char client_id[MAXNAME];
+	char filename[MAXNAME];
+};
+typedef struct propagate_command_data prog_comm_info;
+
 
 
 void init_server_structs(int sid, int port, char* address);
@@ -41,6 +51,9 @@ void new_backup_sv_conn(char* my_address, int old_sockid);
 int send_servers_to_new(int sockid);
 int send_clients_to_new(int sockid);
 int send_new_server_to_backup(int to_sid);
+void propagate_upload(char *filename, char *client_id);
+void propagate_delete(char *filename, char *client_id);
+void propagate_sync_dir(char *client_id);
 void* serverThread(void* connection_struct);
 
 void run_backup(int sockid, char* address, int port, char* primary_server_address, int primary_server_port);
