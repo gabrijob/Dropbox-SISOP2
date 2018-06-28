@@ -8,17 +8,21 @@
 #define BACKUP1_ADDRESS "127.0.0.2"
 #define BACKUP2_ADDRESS "127.0.0.3"
 
+#define RECV_TIMEOUT 3
+
 #define SL_REQ "SERVERS LIST REQUEST"
 #define CL_REQ "CLIENTS LIST REQUEST"
 #define NS_SIGNAL "NEW BACKUP SERVER SIGNAL"
 #define NC_SIGNAL "NEW CLIENT SIGNAL"
+#define TST_CON "TESTING CONNECTION"
+#define DM "ELECTION"
 
 
 struct server_connection{
 	int sid;
-    int port;
+    	int port;
 	char address[MAXNAME];
-    int socket;
+    	int socket;
 };
 typedef struct server_connection s_Connection;
 
@@ -43,6 +47,9 @@ int recv_servers_list(int sockid, struct sockaddr_in *prim_sv);
 int recv_clients_list(int sockid, struct sockaddr_in *prim_sv);
 int recv_new_server(int sockid);
 void wait_contact(int sockid);
+void send_test_msg();
+int start_election(int sockid);
+void wait_connection_v2();
 
 void serversListPrint();
 void clientsListPrint();
