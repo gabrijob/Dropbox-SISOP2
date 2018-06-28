@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -g
 
 CLIENT_OBJ = client_main.o dropboxClient.o dropboxUtil.o udp_assist.o sync-client.o sync-threads.o 
-SERVER_OBJ = server_main.o dropboxServer.o dropboxUtil.o udp_assist.o sync-server.o server_replication.o
+SERVER_OBJ = server_main.o dropboxServer.o dropboxUtil.o udp_assist.o sync-server.o server_replication.o sync-backup.o
 
 
 all: client server

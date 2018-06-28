@@ -2,6 +2,7 @@
 #define SERVER_REPLICATION_HEADER
 
 #include "dropboxServer.h"
+#include "sync-backup.h"
 
 #define MAXSERVERS 100
 
@@ -35,7 +36,7 @@ typedef struct client_data C_DATA;
 
 
 void init_server_structs(int sid, int port, char* address);
-void register_client_login(char *id, struct sockaddr_in *cli_addr);
+void register_client_login(char *id, struct sockaddr_in *cli_addr, Client* client);
 void new_backup_sv_conn(char* my_address, int old_sockid);
 int send_servers_to_new(int sockid);
 int send_clients_to_new(int sockid);

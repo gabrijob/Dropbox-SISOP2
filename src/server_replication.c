@@ -6,6 +6,7 @@
 
 //----------------------GLOBAL VARIABLES-----------------------------------------------------------------------
 int my_id = 0;
+
 int last_new_id = 0;
 int new_primary = 0;
 s_Connection* serversList[MAXSERVERS]; // id do servidor é sua posição no array
@@ -13,11 +14,15 @@ int last_client_index = -1;
 C_DATA* clientsList[MAX_CLIENTS];
 int is_new_backup[MAXSERVERS];
 int is_new_client[MAX_CLIENTS];
+
+Client* focus_client;
+sem_t s_focus_client;
+
 int primary_killed = FALSE;
 static sigjmp_buf recv_timed_out;
 static sigjmp_buf recv_timed_out2;
 static sigjmp_buf recv_timed_out3;
-
+//-------------------------------------------------------------------------------------------------------------
 
 /* Timeout handler functions */
 void timeout_handler(int sig) {
@@ -104,7 +109,7 @@ void signal_new_client() {
 }
 
 /* Insert client data on the clients list */
-void register_client_login(char *id, struct sockaddr_in *cli_addr) {
+void register_client_login(char *id, struct sockaddr_in *cli_addr, Client* client) {
 	C_DATA *client_data = (C_DATA*) malloc(sizeof(C_DATA));
 	strcpy(client_data->id, id);
 	client_data->sock_addr = cli_addr;
@@ -112,6 +117,9 @@ void register_client_login(char *id, struct sockaddr_in *cli_addr) {
 	last_client_index++;
 	clientsList[last_client_index] = client_data;
 	signal_new_client();
+
+	focus_client = client;
+	//sem_init(&s_focus_client, 0, -last_client_index);
 }
 
 void new_backup_sv_conn(char* my_address, int old_sockid) {
@@ -452,6 +460,10 @@ int send_new_client_to_backup(int to_sid) {
 	
 	is_new_client[to_sid] = FALSE;
 
+	/* Synchronize client files with backup*/
+	send_client_files(to_socket, focus_client, &backup_addr);
+	//sem_post(&s_focus_client);
+
 	return SUCCESS;	
 }
 
@@ -465,7 +477,7 @@ void* serverThread(void* connection_struct) {
 	int sockid = connection->socket;
 	int sid = connection->sid;
 
-    	send_servers_to_new(sockid);
+    send_servers_to_new(sockid);
 	serversListPrint(); 			//debug
 	send_clients_to_new(sockid);
 	clientsListPrint();				//debug
@@ -474,10 +486,8 @@ void* serverThread(void* connection_struct) {
 		
 		if(is_new_backup[sid]) 
 			send_new_server_to_backup(sid);
-		else if(is_new_client[sid]) {
-			printf("\nSIGNALED\n"); 
-			send_new_client_to_backup(sid);	
-		}
+		else if(is_new_client[sid])
+			send_new_client_to_backup(sid);		
 		else {
 			sleep(2);
 			send_test_msg();
@@ -797,6 +807,7 @@ int recv_new_client(int sockid) {
 	clientsList[last_client_index] = client_data;
 
 	/* Synchornize client directory with main server's */
+	get_client_files(sockid);
 
 	return SUCCESS;
 }

@@ -265,7 +265,7 @@ void* clientThread(void* connection_struct) {
 		pthread_mutex_unlock(&clients_list_mutex);
 
 		/* Register new client for backup servers*/
-		register_client_login(client_id, cli_addr);
+		register_client_login(client_id, cli_addr, client);
 
 
 	} else {
