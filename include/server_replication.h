@@ -21,9 +21,9 @@
 
 struct server_connection{
 	int sid;
-    	int port;
+    int port;
 	char address[MAXNAME];
-    	int socket;
+    int socket;
 };
 typedef struct server_connection s_Connection;
 

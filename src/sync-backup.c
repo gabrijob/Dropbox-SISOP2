@@ -3,6 +3,81 @@
 
 #include "sync-backup.h"
 
+void synchronize_local(int sockid, struct sockaddr_in* prim_addr, char* client_id, MSG_ID *msg_id);
+void synchronize_remote(int sockid, struct sockaddr_in* prim_addr, char* client_id, MSG_ID *msg_id);
+void sync_to_backup_dw(int sockid, char* client_id, MSG_ID* msg_id);
+void sync_to_backup_re(int sockid, char* client_id, MSG_ID* msg_id);
+
+
+
+void send_all_clients(int sockid, struct sockaddr_in* backup_addr) {
+    
+    int zero;
+    char buffer[BUFFER_SIZE];
+    char prim_folder[3*MAXNAME];
+    sprintf(prim_folder, "%s/%s", getUserHome(), SERVER_FOLDER);
+    
+    FileInfo files[MAXFILES];
+    int counter;
+    counter = get_dir_file_info(prim_folder, files);
+
+    printf("\nSending all files to new backup server...");
+
+    for (int i = 0; i < counter; i++) {
+        /*If directory*/
+        if(files[i].extension[0] == '\0') {
+            /* Tell backup to complete sync */
+            strcpy(buffer, TSO);
+            zero = START_MSG_COUNTER;
+            if(send_packet(&zero, buffer, sockid, backup_addr) < 0)
+                printf("\nERROR telling backup server to complete sync");
+
+            send_client_files(sockid, files[i].name, backup_addr);
+        }
+    }
+
+    /* Tell backup that complete sync is over */
+    strcpy(buffer, TSF);
+    zero = START_MSG_COUNTER;
+    if(send_packet(&zero, buffer, sockid, backup_addr) < 0)
+        printf("\nERROR telling backup serve stop");
+
+    printf("\n...Done\n");
+
+}
+
+void get_all_clients(int sockid) {
+
+    int zero;
+    struct sockaddr_in prim_addr;
+
+    char buffer[BUFFER_SIZE];
+
+    char backup_folder[3*MAXNAME];
+    sprintf(backup_folder, "%s/%s", getUserHome(), TEST_SERVER_FOLDER);
+
+    printf("\nReceiving all files from primary server...");
+
+    /* Receive message to complete sync or not  */
+	zero = START_MSG_COUNTER;
+	bzero(buffer, BUFFER_SIZE -1);
+	if(recv_packet(&zero, buffer, sockid, &prim_addr) < 0)
+		printf("\nERROR receiving complete sync request"); 
+
+    while(strcmp(buffer, TSF) != 0) {
+        get_client_files(sockid);
+
+        /* Receive message to complete sync or not  */
+	    zero = START_MSG_COUNTER;
+	    bzero(buffer, BUFFER_SIZE -1);
+	    if(recv_packet(&zero, buffer, sockid, &prim_addr) < 0)
+		    printf("\nERROR receiving sync status");
+    }
+
+    printf("\n...Done\n");
+}
+
+
 
 void get_file(char *filename, int sockid, struct sockaddr_in* prim_addr, char *client_id, MSG_ID *msg_id) {
 	int file_size;
@@ -129,12 +204,12 @@ int delete_file(char* filename, char* client_id) {
 
 
 
-void send_client_files(int sockid, Client* client_sync, struct sockaddr_in* backup_addr) {
+void send_client_files(int sockid, char* client_id, struct sockaddr_in* backup_addr) {
     int zero;
     char buffer[BUFFER_SIZE];
 
     /* Send client id */
-	strcpy(buffer, client_sync->userid);
+	strcpy(buffer, client_id);
 	zero = START_MSG_COUNTER;
 	if(send_packet(&zero, buffer, sockid, backup_addr) < 0)
 		printf("\nERROR sending client id to backup server");	
@@ -146,8 +221,8 @@ void send_client_files(int sockid, Client* client_sync, struct sockaddr_in* back
     
     printf("\nSynchronizing client with backup server...");
 
-    synchronize_client(sockid, client_sync, &msg_id);
-    synchronize_server(sockid, client_sync, &msg_id);
+    sync_to_backup_dw(sockid, client_id, &msg_id);
+    sync_to_backup_re(sockid, client_id, &msg_id);
 
     printf("\n...Done\n");
 }
@@ -174,7 +249,7 @@ void get_client_files(int sockid) {
     msg_id.client = 0;
     msg_id.server = 0;
 
-    printf("\nSynchronizing client with primary server...");
+    printf("\nSynchronizing client %s with primary server...", client_id);
 
     synchronize_local(sockid, &prim_addr, client_id, &msg_id);
     synchronize_remote(sockid, &prim_addr, client_id, &msg_id);
@@ -182,6 +257,8 @@ void get_client_files(int sockid) {
     printf("\n...Done\n");
 	
 }
+
+//------------------------------------------------------PRIVATE-------------------------------------------------------------------------
 
 void synchronize_local(int sockid, struct sockaddr_in* prim_addr, char* client_id, MSG_ID *msg_id) {
 
@@ -194,7 +271,13 @@ void synchronize_local(int sockid, struct sockaddr_in* prim_addr, char* client_i
 	int number_files_server;
 
 	char client_folder[3*MAXNAME];
+    /* Create client directory if it doesn't exist */
 	sprintf(client_folder, "%s/%s/%s", getUserHome(), TEST_SERVER_FOLDER, client_id);
+    if(check_dir(client_folder) == FALSE) {
+		if(mkdir(client_folder, 0777) != SUCCESS) {
+			printf("Error creating client folder '%s'.\n", client_folder);
+		}
+	}
 
 
 	/* Send start sync message */
@@ -321,6 +404,168 @@ void synchronize_remote(int sockid, struct sockaddr_in* prim_addr, char* client_
         }
 
 	}
+}
+
+void sync_to_backup_dw(int sockid, char* client_id, MSG_ID* msg_id) { 
+
+	char buffer[BUFFER_SIZE];
+    pthread_mutex_t file_mutex;	
+	int number_files_server;
+    FileInfo localFiles[MAXFILES];
+
+	struct sockaddr_in cli_addr;
+
+    char client_folder[3*MAXNAME];
+	sprintf(client_folder, "%s/%s/%s", getUserHome(), SERVER_FOLDER, client_id);
+
+	printf("\nIniciando sincronização do cliente.\n");	//debug
+
+	/* Receive start message from client */
+	bzero(buffer, BUFFER_SIZE);
+	if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
+		printf("\nERROR receiving start message from client");	
+	
+	number_files_server = get_dir_file_info(client_folder, localFiles);	
+
+	/* Send number of files on server */
+	sprintf(buffer, "%d", number_files_server);
+	printf("\nClient number of files: %s.", buffer);	//debug
+	if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
+		printf("\nERROR sending number of files");
+	
+
+	//for each file on server
+	for(int i = 0; i < number_files_server; i++) {    
+		/* Send file name */
+		strcpy(buffer, localFiles[i].name);
+		printf("\nNome do arquivo a enviar: %s", buffer);	//debug		
+		if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
+			printf("\nERROR sending file name");
+		
+
+		/* Sends the file's last modification */
+		strcpy(buffer, localFiles[i].last_modified);
+		printf("\nLast modified: %s", buffer);	//debug
+		if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
+			printf("\nERROR sending file's last_modification");
+
+
+		/* Receive answer from client */
+		bzero(buffer, BUFFER_SIZE);
+		if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
+			printf("\nERROR receiving answer from client");	
+
+		printf("\nReceived: %s", buffer);
+		/* Send file if client requested it*/
+		if(strcmp(buffer, DOWN_REQ) == 0){
+			/* Tell client that file name is not required */
+			strcpy(buffer, F_NAME_NREQ);
+			if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
+				printf("\nERROR sending file's last_modification"); 
+
+
+		   	send_file(localFiles[i].name, sockid, client_id, &cli_addr, msg_id, &file_mutex);
+		}
+	}	
+	printf("\nEncerrando sincronização do cliente.\n");		
+}
+
+
+void sync_to_backup_re(int sockid, char* client_id, MSG_ID* msg_id) {
+
+	char buffer[BUFFER_SIZE];
+     pthread_mutex_t file_mutex;
+	char filename[MAXNAME];
+	char filepath[4*MAXNAME];
+	char last_modified_client[MAXNAME];
+	char last_modified_server[MAXNAME];
+
+	struct sockaddr_in cli_addr;
+
+    char client_folder[3*MAXNAME];
+	sprintf(client_folder, "%s/%s/%s", getUserHome(), SERVER_FOLDER, client_id);
+
+	printf("\nIniciando sincronização do servidor.\n");	//debug
+
+	/* Receives number of files on client */
+	bzero(buffer, BUFFER_SIZE);
+	if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
+		printf("\nERROR receiving number of files from client");
+
+	int number_files_client = atoi(buffer);
+	printf("\nNumber of files no cliente: %d", number_files_client); //debug
+	
+	//for each file on client
+	for(int i = 0; i < number_files_client; i++) {
+		/* Receive file name */
+		bzero(buffer, BUFFER_SIZE);
+		if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
+			printf("\nERROR receiving file name");
+		
+		strcpy(filename, buffer);
+	    printf("\nNome recebido: %s", filename);		//debug
+		
+
+		/* Receive last modified at client */
+		bzero(buffer, BUFFER_SIZE);
+		if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
+			printf("\nERROR receiving last modified at client");
+
+		printf("\nLast modified recebido: %s", buffer);
+		strcpy(last_modified_client, buffer);
+
+		sprintf(filepath, "%s/%s/%s/%s", getUserHome(), SERVER_FOLDER, client_id, filename);
+    	getModifiedTime(filepath, last_modified_server);
+	    printf("\nLast modified servidor: %s", last_modified_server);
+
+		/* Asks for file if it's older or doesn't exist */
+		if(check_dir(filepath) == FALSE) {
+			/* Send delete request to client */
+			strcpy(buffer, DEL_REQ);
+			if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
+				printf("\nERROR requesting file deletion");
+
+
+			/* Receive delete confirmation from client */
+			bzero(buffer, BUFFER_SIZE);
+			if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
+				printf("\nERROR receiving delete confirmation");
+
+			if(strcmp(buffer, DEL_COMPLETE) == 0)
+				printf("\nFile: %s deleted at client", filename); //debug
+		} 
+		else if(older_file(last_modified_client, last_modified_server) == 1) {
+			/* Message client to start an upload */
+			strcpy(buffer, S_GET);
+			if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
+				printf("\nERROR requesting file from client");
+
+
+			/* Receives request to upload from client  */
+			bzero(buffer, BUFFER_SIZE);
+			if(recv_packet(&msg_id->client, buffer, sockid, &cli_addr) < 0)
+				printf("\nERROR receiving upload request from client");
+			
+
+			printf("\nRecebido: %s", buffer);	//buffer
+			/* Uploads file */
+			if(strcmp(buffer, UP_REQ) == 0) {
+				/* Tell client that file name is not required */
+				strcpy(buffer, F_NAME_NREQ);
+				if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
+					printf("\nERROR sending file's last_modification");
+
+				receive_file(filename, sockid, client_id, msg_id, &file_mutex);
+			}
+		}
+		/* If neither send OK message*/
+		else {
+			strcpy(buffer, S_OK);
+			if(send_packet(&msg_id->server, buffer, sockid, &cli_addr) < 0)
+				printf("\nERROR sending OK message");
+		}
+	}
+	printf("\nEncerrando sincronização do servidor.\n");	//debug
 }
 
 

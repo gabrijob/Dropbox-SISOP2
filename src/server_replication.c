@@ -461,7 +461,7 @@ int send_new_client_to_backup(int to_sid) {
 	is_new_client[to_sid] = FALSE;
 
 	/* Synchronize client files with backup*/
-	send_client_files(to_socket, focus_client, &backup_addr);
+	send_client_files(to_socket, client_id, &backup_addr);
 	//sem_post(&s_focus_client);
 
 	return SUCCESS;	
@@ -476,11 +476,23 @@ void* serverThread(void* connection_struct) {
 	
 	int sockid = connection->socket;
 	int sid = connection->sid;
+	int port = connection->port;
+	char address[MAXNAME];
+	sprintf(address, "%s", connection->address);
+
+	struct sockaddr_in backup_addr;
 
     send_servers_to_new(sockid);
 	serversListPrint(); 			//debug
 	send_clients_to_new(sockid);
 	clientsListPrint();				//debug
+
+	/* Create struct for server socket address */
+	if(init_server_connection(port, address, NULL, &backup_addr) == ERROR) {
+		printf("\nERROR initiating server connection");
+	}
+
+	send_all_clients(sockid, &backup_addr);
 
 	while(TRUE)  {
 		
@@ -571,6 +583,8 @@ void run_backup(int sockid, char* address, int port, char* primary_server_addres
 	recv_servers_list(primary_sockid, &primary_sv_conn);
 	recv_clients_list(primary_sockid, &primary_sv_conn);
 	serversList[my_id]->socket = sockid;
+
+	get_all_clients(sockid);
 
 	wait_contact(sockid); 
 }
@@ -820,6 +834,7 @@ void wait_contact(int sockid) {
 	char buffer[BUFFER_SIZE];
 
 	struct sockaddr_in conn_addr;
+
 
 	while(TRUE) {
 

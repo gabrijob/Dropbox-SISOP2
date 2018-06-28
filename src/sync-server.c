@@ -158,6 +158,7 @@ void synchronize_server(int sockid, Client* client_sync, MSG_ID* msg_id) {
 	printf("\nEncerrando sincronização do servidor.\n");	//debug
 }
 
+
 void update_del(int sockid, Client* client_sync, MSG_ID* msg_id) {
 	char buffer[BUFFER_SIZE];	
 	int number_files_server;
